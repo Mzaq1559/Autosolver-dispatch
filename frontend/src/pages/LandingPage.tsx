@@ -1,60 +1,6 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 
-const easeOut = [0.22, 1, 0.36, 1] as const
-
-const heroTitle = {
-  hidden: { opacity: 0, y: 32 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.65, ease: easeOut },
-  },
-}
-
-const heroSubtitle = {
-  hidden: { opacity: 0, y: 24 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.55, ease: easeOut, delay: 0.18 },
-  },
-}
-
-const heroActions = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: easeOut, delay: 0.36 },
-  },
-}
-
-const featureContainer = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.12, delayChildren: 0.05 },
-  },
-}
-
-const featureCard = {
-  hidden: { opacity: 0, y: 36 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.55, ease: easeOut },
-  },
-}
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 28 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: easeOut },
-  },
-}
-
 const PARTICLES: { left: string; top: string; delay: string; size: number }[] = [
   { left: '8%', top: '18%', delay: '0s', size: 3 },
   { left: '22%', top: '72%', delay: '1.2s', size: 2 },
@@ -67,6 +13,8 @@ const PARTICLES: { left: string; top: string; delay: string; size: number }[] = 
   { left: '92%', top: '42%', delay: '0.3s', size: 4 },
   { left: '44%', top: '58%', delay: '1.6s', size: 2 },
 ]
+
+const motionIn = { duration: 0.6 } as const
 
 export default function LandingPage() {
   return (
@@ -102,37 +50,35 @@ export default function LandingPage() {
         className="scroll-smooth bg-[#0f0f1a] font-[Inter,system-ui,sans-serif] text-white antialiased"
         style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
       >
-        <header className="fixed inset-x-0 top-0 z-50 border-b border-white/[0.06] bg-[#0f0f1a]/80 backdrop-blur-md">
-          <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 sm:h-[4.25rem] sm:px-8">
+        <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-[#6c63ff]/20 bg-[#0f0f1a]/90 px-8 backdrop-blur">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-lg font-semibold tracking-tight text-white transition hover:text-[#c4bfff]"
+          >
+            <span className="text-xl" aria-hidden>
+              ⚡
+            </span>
+            AutoSolver
+          </Link>
+          <div className="flex items-center gap-4">
             <Link
-              to="/"
-              className="flex items-center gap-2 text-lg font-semibold tracking-tight text-white transition hover:text-[#c4bfff]"
+              to="/login"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-white/80 transition hover:text-white sm:px-4"
             >
-              <span className="text-xl" aria-hidden>
-                ⚡
-              </span>
-              AutoSolver
+              Login
             </Link>
-            <div className="flex items-center gap-3 sm:gap-4">
-              <Link
-                to="/login"
-                className="rounded-lg px-3 py-2 text-sm font-medium text-white/80 transition hover:text-white sm:px-4"
-              >
-                Login
-              </Link>
-              <Link
-                to="/register"
-                className="rounded-lg bg-[#6c63ff] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(108,99,255,0.65)] transition hover:bg-[#5a52e6] sm:px-5"
-              >
-                Get Started
-              </Link>
-            </div>
-          </nav>
+            <Link
+              to="/register"
+              className="rounded-lg bg-[#6c63ff] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(108,99,255,0.65)] transition hover:bg-[#5a52e6] sm:px-5"
+            >
+              Get Started
+            </Link>
+          </div>
         </header>
 
         <main>
           {/* Hero */}
-          <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pb-24 pt-28 sm:px-8 sm:pt-32">
+          <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 text-center">
             <div className="pointer-events-none absolute inset-0">
               <div className="landing-grid-bg absolute inset-0" aria-hidden />
               <div
@@ -158,57 +104,57 @@ export default function LandingPage() {
 
             <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center text-center">
               <motion.p
-                initial={{ opacity: 0, y: 12 }}
+                initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, ease: easeOut }}
+                transition={{ ...motionIn, delay: 0 }}
                 className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#00d4aa]/25 bg-[#00d4aa]/10 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-[#7ef3de]"
               >
                 Dispatch, reimagined
               </motion.p>
 
               <motion.h1
-                variants={heroTitle}
-                initial="hidden"
-                animate="visible"
-                className="text-balance text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl md:leading-[1.08]"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...motionIn, delay: 0.1 }}
+                className="text-balance text-6xl font-bold text-white"
               >
                 Deliver Smarter. Not Harder.
               </motion.h1>
 
               <motion.p
-                variants={heroSubtitle}
-                initial="hidden"
-                animate="visible"
-                className="mt-6 max-w-2xl text-pretty text-base leading-relaxed text-white/65 sm:text-lg"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...motionIn, delay: 0.2 }}
+                className="mt-4 max-w-2xl text-pretty text-xl text-white/60"
               >
                 AutoSolver uses AI to assign drivers, optimize routes, and track deliveries in real
                 time.
               </motion.p>
 
               <motion.div
-                variants={heroActions}
-                initial="hidden"
-                animate="visible"
-                className="mt-10 flex w-full flex-col items-stretch justify-center gap-3 sm:max-w-md sm:flex-row sm:items-center"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...motionIn, delay: 0.3 }}
+                className="mt-8 flex justify-center gap-4"
               >
                 <Link
                   to="/register"
-                  className="inline-flex h-12 items-center justify-center rounded-xl bg-[#6c63ff] px-8 text-sm font-semibold text-white shadow-[0_0_32px_-6px_rgba(108,99,255,0.8)] transition hover:bg-[#5a52e6]"
+                  className="inline-flex w-auto items-center justify-center rounded-full bg-[#6c63ff] px-8 py-3 text-sm font-semibold text-white transition hover:bg-[#5a52e6]"
                 >
                   Get Started
                 </Link>
                 <Link
                   to="#features"
-                  className="inline-flex h-12 items-center justify-center rounded-xl border border-[#6c63ff]/80 bg-transparent px-8 text-sm font-semibold text-[#d4d0ff] transition hover:border-[#6c63ff] hover:bg-[#6c63ff]/10"
+                  className="inline-flex w-auto items-center justify-center rounded-full border border-[#6c63ff] px-8 py-3 text-sm font-semibold text-white transition hover:bg-[#6c63ff]/10"
                 >
                   See How It Works
                 </Link>
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.65, duration: 0.6 }}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...motionIn, delay: 0.4 }}
                 className="mt-14 flex items-center gap-6 text-xs text-white/40"
               >
                 <span className="flex items-center gap-2">
@@ -224,6 +170,9 @@ export default function LandingPage() {
             </div>
 
             <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ...motionIn, delay: 0.45 }}
               aria-hidden
               className="absolute bottom-10 left-1/2 z-10 hidden -translate-x-1/2 sm:block"
               style={{ animation: 'landing-drift 2.8s ease-in-out infinite' }}
@@ -238,10 +187,10 @@ export default function LandingPage() {
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#6c63ff]/40 to-transparent" />
             <div className="mx-auto max-w-6xl">
               <motion.div
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-80px' }}
-                transition={{ duration: 0.5, ease: easeOut }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={motionIn}
                 className="mb-14 max-w-2xl"
               >
                 <p className="text-sm font-semibold uppercase tracking-widest text-[#00d4aa]">
@@ -252,15 +201,12 @@ export default function LandingPage() {
                 </h2>
               </motion.div>
 
-              <motion.div
-                className="grid gap-6 md:grid-cols-3"
-                variants={featureContainer}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: '-60px' }}
-              >
+              <div className="grid gap-6 md:grid-cols-3">
                 <motion.article
-                  variants={featureCard}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.2 }}
+                  transition={{ ...motionIn, delay: 0 }}
                   className="rounded-2xl border border-[#6c63ff]/20 bg-[#16213e] p-8 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)]"
                 >
                   <div className="mb-4 text-3xl" aria-hidden>
@@ -272,7 +218,10 @@ export default function LandingPage() {
                   </p>
                 </motion.article>
                 <motion.article
-                  variants={featureCard}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.2 }}
+                  transition={{ ...motionIn, delay: 0.08 }}
                   className="rounded-2xl border border-[#6c63ff]/20 bg-[#16213e] p-8 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)]"
                 >
                   <div className="mb-4 text-3xl" aria-hidden>
@@ -284,7 +233,10 @@ export default function LandingPage() {
                   </p>
                 </motion.article>
                 <motion.article
-                  variants={featureCard}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.2 }}
+                  transition={{ ...motionIn, delay: 0.16 }}
                   className="rounded-2xl border border-[#6c63ff]/20 bg-[#16213e] p-8 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)]"
                 >
                   <div className="mb-4 text-3xl" aria-hidden>
@@ -295,7 +247,7 @@ export default function LandingPage() {
                     Track every delivery, driver, and order in one dashboard
                   </p>
                 </motion.article>
-              </motion.div>
+              </div>
             </div>
           </section>
 
@@ -303,25 +255,16 @@ export default function LandingPage() {
           <section className="border-t border-white/[0.06] px-6 py-24 sm:px-8">
             <div className="mx-auto max-w-6xl">
               <motion.h2
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: '-80px' }}
-                variants={fadeUp}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={motionIn}
                 className="text-center text-3xl font-bold tracking-tight sm:text-4xl"
               >
                 Built For Everyone
               </motion.h2>
 
-              <motion.div
-                className="mt-14 grid gap-6 md:grid-cols-3"
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: '-60px' }}
-                variants={{
-                  hidden: {},
-                  visible: { transition: { staggerChildren: 0.1 } },
-                }}
-              >
+              <div className="mt-14 grid gap-6 md:grid-cols-3">
                 {[
                   {
                     icon: '🏢',
@@ -338,10 +281,13 @@ export default function LandingPage() {
                     title: 'Customer',
                     body: 'Place orders. Track delivery. Know exactly when it arrives.',
                   },
-                ].map((role) => (
+                ].map((role, index) => (
                   <motion.div
                     key={role.title}
-                    variants={fadeUp}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.2 }}
+                    transition={{ ...motionIn, delay: index * 0.08 }}
                     className="flex flex-col rounded-2xl border border-white/[0.08] bg-[#12182a] p-8"
                   >
                     <span className="text-3xl" aria-hidden>
@@ -357,17 +303,17 @@ export default function LandingPage() {
                     </Link>
                   </motion.div>
                 ))}
-              </motion.div>
+              </div>
             </div>
           </section>
 
           {/* CTA */}
           <section className="px-6 py-20 sm:px-8 sm:py-28">
             <motion.div
-              initial={{ opacity: 0, y: 24 }}
+              initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{ duration: 0.55, ease: easeOut }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={motionIn}
               className="relative mx-auto max-w-4xl overflow-hidden rounded-3xl border border-[#6c63ff]/30 bg-gradient-to-br from-[#6c63ff]/35 via-[#1a1440] to-[#0f0f1a] px-8 py-16 text-center shadow-[0_40px_120px_-60px_rgba(108,99,255,0.9)] sm:px-14 sm:py-20"
             >
               <div
