@@ -63,14 +63,14 @@ export default function App() {
   const completedToday = 24
 
   return (
-    <div className="box-border flex h-screen min-h-0 flex-col overflow-hidden bg-[#0f0f1a] pt-[60px] text-white">
+    <div className="box-border flex h-screen min-h-0 w-full max-w-none flex-col overflow-hidden bg-[#0f0f1a] pt-[60px] text-white">
       <Navbar />
-      <div className="flex min-h-0 w-full flex-1 flex-row">
+      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-row">
         <motion.aside
-          initial={{ opacity: 0, x: -16 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="box-border flex h-full w-[380px] shrink-0 flex-col overflow-y-auto border-r border-white/5 bg-[#1a1a2e]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+          className="box-border flex h-full min-h-0 w-[380px] shrink-0 flex-col overflow-y-auto overflow-x-hidden border-r border-white/5 bg-[#1a1a2e]"
         >
           <div className="flex flex-col gap-4 p-4">
             <AnalyticsPanel

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 
-export type OrderStatus = 'assigned' | 'pending'
+export type OrderStatus = 'assigned' | 'pending' | 'delivered'
 
 export interface Order {
   id: number
@@ -12,17 +12,19 @@ export interface Order {
 
 const statusStyles: Record<
   OrderStatus,
-  { border: string; label: string; accent: string }
+  { badge: string; borderL: string }
 > = {
   assigned: {
-    border: 'border-[#6c63ff]/40',
-    label: 'text-[#6c63ff]',
-    accent: 'bg-[#6c63ff]',
+    badge: 'bg-[#6c63ff] text-white',
+    borderL: 'border-l-[3px] border-l-[#6c63ff]',
   },
   pending: {
-    border: 'border-amber-400/35',
-    label: 'text-amber-300',
-    accent: 'bg-amber-400',
+    badge: 'bg-amber-400 text-[#0f0f1a]',
+    borderL: 'border-l-[3px] border-l-amber-400',
+  },
+  delivered: {
+    badge: 'bg-emerald-500 text-white',
+    borderL: 'border-l-[3px] border-l-emerald-500',
   },
 }
 
@@ -42,62 +44,48 @@ const row = {
 export function OrdersPanel({ orders }: { orders: Order[] }) {
   return (
     <section className="space-y-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+      <h2 className="pl-4 text-xs font-semibold uppercase tracking-widest text-[#6c63ff]">
         Orders
       </h2>
       <motion.ul
-        className="list-none space-y-2 p-0"
+        className="list-none space-y-0 p-0"
         variants={list}
         initial="hidden"
         animate="show"
       >
         {orders.map((o) => {
           const s = statusStyles[o.status]
+          const glow =
+            o.status === 'assigned'
+              ? '0 0 20px rgba(108, 99, 255, 0.4), 0 4px 12px rgba(0,0,0,0.25)'
+              : o.status === 'pending'
+                ? '0 0 20px rgba(251, 191, 36, 0.35), 0 4px 12px rgba(0,0,0,0.25)'
+                : '0 0 20px rgba(16, 185, 129, 0.4), 0 4px 12px rgba(0,0,0,0.25)'
           return (
             <motion.li
               key={o.id}
               variants={row}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              whileHover={{ scale: 1.01 }}
+              whileHover={{ boxShadow: glow }}
               layout
-              className={`rounded-xl border bg-[#16213e] p-3 ${s.border}`}
+              className={`relative mb-2 rounded-xl border border-white/5 bg-[#16213e] p-4 last:mb-0 ${s.borderL}`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-white">{o.customer}</p>
-                  <p className="mt-0.5 truncate text-sm text-white/55">
-                    {o.restaurant}
-                  </p>
-                  <p className="mt-1 text-xs text-white/40">
-                    {o.driver ? (
-                      <>
-                        Driver:{' '}
-                        <span className="text-white/70">{o.driver}</span>
-                      </>
-                    ) : (
-                      <span className="italic">Unassigned</span>
-                    )}
-                  </p>
-                </div>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${s.label} bg-white/5`}
-                >
-                  {o.status}
-                </span>
-              </div>
-              <motion.div
-                className={`mt-2 h-1 overflow-hidden rounded-full bg-white/5 ${
-                  o.status === 'assigned' ? 'ring-1 ring-[#6c63ff]/25' : 'ring-1 ring-amber-400/20'
-                }`}
-                initial={false}
+              <span
+                className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${s.badge}`}
               >
-                <motion.div
-                  className={`h-full rounded-full ${s.accent}`}
-                  initial={{ width: '0%' }}
-                  animate={{ width: o.status === 'assigned' ? '100%' : '35%' }}
-                  transition={{ duration: 0.8, ease: 'easeOut' }}
-                />
-              </motion.div>
+                {o.status}
+              </span>
+              <div className="min-w-0 pr-20">
+                <p className="font-bold leading-snug text-white">{o.customer}</p>
+                <p className="mt-1 text-sm text-white/50">{o.restaurant}</p>
+                {o.driver ? (
+                  <p className="mt-2 text-xs font-medium text-[#00d4aa]">
+                    {o.driver}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs italic text-white/35">Unassigned</p>
+                )}
+              </div>
             </motion.li>
           )
         })}

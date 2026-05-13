@@ -37,7 +37,12 @@ function driverIcon(status: Driver['status']): L.DivIcon {
 }
 
 function orderIcon(status: Order['status']): L.DivIcon {
-  const color = status === 'assigned' ? '#6c63ff' : '#fbbf24'
+  const color =
+    status === 'assigned'
+      ? '#6c63ff'
+      : status === 'pending'
+        ? '#fbbf24'
+        : '#22c55e'
   return L.divIcon({
     className: 'utosolver-marker',
     html: `<div style="width:12px;height:12px;border-radius:4px;background:${color};border:2px solid #0f0f1a;transform:rotate(45deg);box-shadow:0 0 0 2px ${color}44"></div>`,
@@ -71,11 +76,13 @@ export function MapView({
   return (
     <div
       style={{
-        height: '100vh',
-        width: '100%',
         position: 'absolute',
         top: 0,
         left: 0,
+        right: 0,
+        bottom: 0,
+        height: '100%',
+        width: '100%',
       }}
     >
       <style>{`
@@ -85,6 +92,7 @@ export function MapView({
         }
         .leaflet-container {
           height: 100%;
+          min-height: 100%;
           width: 100%;
           background: #0f0f1a;
         }

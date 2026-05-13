@@ -6,11 +6,13 @@ function StatCard({
   value,
   suffix = '',
   delay = 0,
+  icon,
 }: {
   label: string
   value: number
   suffix?: string
   delay?: number
+  icon: string
 }) {
   const [display, setDisplay] = useState(0)
 
@@ -30,20 +32,21 @@ function StatCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: delay * 0.35, duration: 0.4 }}
       whileHover={{ y: -2 }}
-      className="rounded-xl border border-white/5 bg-[#16213e] p-3 shadow-inner shadow-black/30"
+      className="flex flex-col items-center rounded-xl bg-[#16213e] px-2 py-3 text-center"
     >
-      <p className="text-[11px] font-medium uppercase tracking-wider text-white/45">
-        {label}
-      </p>
+      <span className="text-xl leading-none" aria-hidden>
+        {icon}
+      </span>
       <motion.p
-        className="mt-1 flex items-baseline gap-0.5 text-2xl font-bold tabular-nums text-white"
+        className="mt-2 flex items-baseline justify-center gap-0.5 text-2xl font-bold tabular-nums text-white"
         layout
       >
         <span>{display}</span>
         {suffix ? (
-          <span className="text-sm font-semibold text-[#6c63ff]">{suffix}</span>
+          <span className="text-lg font-bold text-white">{suffix}</span>
         ) : null}
       </motion.p>
+      <p className="mt-1 text-[11px] font-medium text-white/45">{label}</p>
     </motion.div>
   )
 }
@@ -59,13 +62,19 @@ export function AnalyticsPanel({
 }) {
   return (
     <section className="space-y-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+      <h2 className="text-xs font-semibold uppercase tracking-widest text-[#6c63ff]">
         Analytics
       </h2>
       <div className="grid grid-cols-3 gap-2">
-        <StatCard label="Active" value={activeDrivers} delay={0} />
-        <StatCard label="Pending" value={pendingOrders} delay={0.12} />
-        <StatCard label="Today" value={completedToday} suffix="+" delay={0.24} />
+        <StatCard label="Active" value={activeDrivers} delay={0} icon="🚴" />
+        <StatCard label="Pending" value={pendingOrders} delay={0.12} icon="⏳" />
+        <StatCard
+          label="Today"
+          value={completedToday}
+          suffix="+"
+          delay={0.24}
+          icon="📦"
+        />
       </div>
     </section>
   )

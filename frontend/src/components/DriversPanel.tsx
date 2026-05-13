@@ -19,10 +19,10 @@ const container = {
 }
 
 const item = {
-  hidden: { opacity: 0, x: -12 },
+  hidden: { opacity: 0, y: 8 },
   show: {
     opacity: 1,
-    x: 0,
+    y: 0,
     transition: { type: 'spring' as const, stiffness: 380, damping: 28 },
   },
 }
@@ -31,20 +31,11 @@ function StatusBadge({ status }: { status: DriverStatus }) {
   const isAvailable = status === 'available'
   return (
     <span
-      className={`relative inline-flex shrink-0 items-center gap-1.5 overflow-hidden rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
-        isAvailable
-          ? 'bg-[#00d4aa]/15 text-[#00d4aa]'
-          : 'bg-[#ff6b6b]/15 text-[#ff6b6b]'
+      className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-medium capitalize text-white ${
+        isAvailable ? 'bg-[#00d4aa]' : 'bg-[#ff6b6b]'
       }`}
     >
-      {isAvailable && (
-        <motion.span
-          className="absolute inset-0 bg-[#00d4aa]/20"
-          animate={{ opacity: [0.3, 0.8, 0.3] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      )}
-      <span className="relative z-10">{status}</span>
+      {status}
     </span>
   )
 }
@@ -52,31 +43,51 @@ function StatusBadge({ status }: { status: DriverStatus }) {
 export function DriversPanel({ drivers }: { drivers: Driver[] }) {
   return (
     <section className="space-y-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+      <h2 className="pl-4 text-xs font-semibold uppercase tracking-widest text-[#6c63ff]">
         Drivers
       </h2>
       <motion.ul
-        className="list-none space-y-2 p-0"
+        className="list-none space-y-0 p-0"
         variants={container}
         initial="hidden"
         animate="show"
       >
-        {drivers.map((d) => (
-          <motion.li
-            key={d.id}
-            variants={item}
-            whileHover={{ scale: 1.01 }}
-            className="rounded-xl border border-white/5 bg-[#16213e] p-4 shadow-lg shadow-black/20"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <p className="min-w-0 truncate font-medium text-white">{d.name}</p>
-              <StatusBadge status={d.status} />
-            </div>
-            <p className="mt-2 text-xs text-white/50">
-              {d.lat.toFixed(4)}, {d.lng.toFixed(4)}
-            </p>
-          </motion.li>
-        ))}
+        {drivers.map((d) => {
+          const isAvailable = d.status === 'available'
+          return (
+            <motion.li
+              key={d.id}
+              variants={item}
+              whileHover={
+                isAvailable
+                  ? {
+                      boxShadow:
+                        '0 0 20px rgba(0, 212, 170, 0.45), 0 4px 12px rgba(0,0,0,0.25)',
+                    }
+                  : {
+                      boxShadow:
+                        '0 0 20px rgba(255, 107, 107, 0.45), 0 4px 12px rgba(0,0,0,0.25)',
+                    }
+              }
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              className={`mb-2 rounded-xl border border-white/5 bg-[#16213e] p-4 last:mb-0 border-l-[3px] ${
+                isAvailable ? 'border-l-[#00d4aa]' : 'border-l-[#ff6b6b]'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15px] font-bold leading-snug text-white">
+                    {d.name}
+                  </p>
+                  <p className="mt-1 text-xs text-white/45">
+                    {d.lat.toFixed(4)}, {d.lng.toFixed(4)}
+                  </p>
+                </div>
+                <StatusBadge status={d.status} />
+              </div>
+            </motion.li>
+          )
+        })}
       </motion.ul>
     </section>
   )
