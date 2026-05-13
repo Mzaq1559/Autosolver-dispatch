@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import LandingPage from './pages/LandingPage'
 
 import { AnalyticsPanel } from './components/AnalyticsPanel'
 import type { Driver } from './components/DriversPanel'
@@ -10,7 +12,7 @@ import type { Order } from './components/OrdersPanel'
 import { OrdersPanel } from './components/OrdersPanel'
 import { SimulateButton } from './components/SimulateButton'
 
-export default function App() {
+function OwnerDashboard() {
   const [drivers] = useState<Driver[]>([
     {
       id: 1,
@@ -93,5 +95,16 @@ export default function App() {
       </div>
       <SimulateButton />
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/owner" element={<OwnerDashboard />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
