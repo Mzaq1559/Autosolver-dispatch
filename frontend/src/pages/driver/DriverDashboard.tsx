@@ -28,7 +28,6 @@ type OrderDef = {
   pickup: string
   dropoff: string
   distanceKm: string
-  /** Dropoff coordinates for map */
   dropLatLng: [number, number]
 }
 
@@ -53,6 +52,7 @@ const ORDERS: OrderDef[] = [
   },
 ]
 
+/** Lahore center — driver marker */
 const DRIVER_POSITION: [number, number] = [31.5204, 74.3587]
 
 function driverTealIcon(): L.DivIcon {
@@ -102,6 +102,19 @@ function statusBadge(status: OrderDeliveryStatus) {
   }
 }
 
+function orderCardBorderClass(status: OrderDeliveryStatus) {
+  switch (status) {
+    case 'picked_up':
+      return 'border-l-yellow-400'
+    case 'accepted':
+      return 'border-l-blue-400'
+    case 'delivered':
+      return 'border-l-green-400'
+    default:
+      return 'border-l-white/20'
+  }
+}
+
 const pageVariants = {
   hidden: { opacity: 0 },
   show: {
@@ -113,12 +126,12 @@ const pageVariants = {
 const listVariants = {
   hidden: {},
   show: {
-    transition: { staggerChildren: 0.08, delayChildren: 0.12 },
+    transition: { staggerChildren: 0.08, delayChildren: 0.06 },
   },
 }
 
 const cardVariants = {
-  hidden: { opacity: 0, y: 28 },
+  hidden: { opacity: 0, y: 20 },
   show: {
     opacity: 1,
     y: 0,
@@ -157,17 +170,17 @@ export default function DriverDashboard() {
 
   const buttonClassForAdvance = (current: OrderDeliveryStatus) => {
     if (current === 'pending')
-      return 'rounded-xl border border-blue-400/40 bg-blue-500/20 px-4 py-2 text-sm font-medium text-blue-200 hover:bg-blue-500/30'
+      return 'rounded-lg border border-blue-400/40 bg-blue-500/20 px-3 py-2 text-xs font-medium text-blue-200 hover:bg-blue-500/30 sm:text-sm'
     if (current === 'accepted')
-      return 'rounded-xl border border-amber-400/50 bg-amber-400/20 px-4 py-2 text-sm font-medium text-amber-100 hover:bg-amber-400/30'
+      return 'rounded-lg border border-amber-400/50 bg-amber-400/20 px-3 py-2 text-xs font-medium text-amber-100 hover:bg-amber-400/30 sm:text-sm'
     if (current === 'picked_up')
-      return 'rounded-xl border border-emerald-400/40 bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-200 hover:bg-emerald-500/30'
+      return 'rounded-lg border border-emerald-400/40 bg-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-200 hover:bg-emerald-500/30 sm:text-sm'
     return ''
   }
 
   return (
     <motion.div
-      className="min-h-screen bg-[#0f0f1a] text-white"
+      className="box-border flex h-screen min-h-0 w-full max-w-none flex-col overflow-hidden bg-[#0f0f1a] pt-[60px] text-white"
       variants={pageVariants}
       initial="hidden"
       animate="show"
@@ -177,19 +190,20 @@ export default function DriverDashboard() {
           background: transparent !important;
           border: none !important;
         }
-        .driver-mini-map .leaflet-container {
-          height: 250px;
+        .driver-dashboard-map .leaflet-container {
+          height: 100%;
+          min-height: 100%;
           width: 100%;
           background: #0f0f1a;
         }
       `}</style>
 
-      <header className="fixed left-0 right-0 top-0 z-50 flex w-full items-center justify-between border-b border-[#6c63ff]/20 bg-[#1a1a2e] px-4 py-3">
-        <span className="text-sm font-semibold tracking-tight sm:text-base">
+      <header className="fixed left-0 right-0 top-0 z-[1000] flex h-[60px] w-full shrink-0 items-center justify-between border-b border-[#6c63ff]/20 bg-[#1a1a2e] px-4">
+        <span className="truncate text-sm font-semibold tracking-tight sm:text-base">
           ⚡ AutoSolver
         </span>
         <div className="flex items-center gap-3">
-          <div className="flex max-w-[min(50vw,11rem)] items-center gap-2 sm:max-w-none">
+          <div className="flex max-w-[min(45vw,12rem)] items-center gap-2 sm:max-w-none">
             <span className="truncate text-sm text-white/90">Ali Hassan</span>
             <span
               className="h-2 w-2 shrink-0 rounded-full bg-[#00d4aa] shadow-[0_0_8px_#00d4aa88]"
@@ -199,141 +213,159 @@ export default function DriverDashboard() {
           </div>
           <Link
             to="/login"
-            className="text-sm text-white/50 transition-colors hover:text-white"
+            className="shrink-0 text-sm text-white/50 transition-colors hover:text-white"
           >
             Logout
           </Link>
         </div>
       </header>
 
-      <div className="mx-auto max-w-2xl px-0 pb-10 pt-14">
-        <motion.section
-          variants={cardVariants}
-          initial="hidden"
-          animate="show"
-          className="mx-4 mt-20 rounded-2xl bg-[#1a1a2e] p-6"
+      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-row">
+        <motion.aside
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+          className="box-border flex h-full min-h-0 w-[380px] shrink-0 flex-col overflow-y-auto overflow-x-hidden border-r border-white/5 bg-[#1a1a2e]"
         >
-          <h2 className="mb-4 text-lg font-semibold text-white">My Status</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setAvailability('available')}
-              className={
-                availability === 'available'
-                  ? 'rounded-xl border border-[#00d4aa] bg-[#00d4aa]/20 px-3 py-3 text-sm font-medium text-[#00d4aa]'
-                  : 'rounded-xl border border-white/10 bg-[#16213e] px-3 py-3 text-sm font-medium text-white/40'
-              }
-            >
-              🟢 Available
-            </button>
-            <button
-              type="button"
-              onClick={() => setAvailability('busy')}
-              className={
-                availability === 'busy'
-                  ? 'rounded-xl border border-[#ff6b6b] bg-[#ff6b6b]/20 px-3 py-3 text-sm font-medium text-[#ff6b6b]'
-                  : 'rounded-xl border border-white/10 bg-[#16213e] px-3 py-3 text-sm font-medium text-white/40'
-              }
-            >
-              🔴 Busy
-            </button>
-          </div>
-        </motion.section>
+          <div className="flex flex-col gap-4 p-4 pb-6">
+            <div className="m-3 rounded-2xl bg-[#16213e] p-4">
+              <div className="flex gap-3">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#00d4aa] text-lg font-bold text-[#0f0f1a]">
+                  AH
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg font-bold text-white">Ali Hassan</p>
+                  <p className="truncate text-sm text-white/50">ali@autosolver.com</p>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAvailability('available')}
+                  className={
+                    availability === 'available'
+                      ? 'rounded-lg border border-[#00d4aa] bg-[#00d4aa]/20 px-2 py-2 text-xs font-medium text-[#00d4aa] sm:text-sm'
+                      : 'rounded-lg border border-white/10 bg-[#0f0f1a]/40 px-2 py-2 text-xs font-medium text-white/40 sm:text-sm'
+                  }
+                >
+                  🟢 Available
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAvailability('busy')}
+                  className={
+                    availability === 'busy'
+                      ? 'rounded-lg border border-[#ff6b6b] bg-[#ff6b6b]/20 px-2 py-2 text-xs font-medium text-[#ff6b6b] sm:text-sm'
+                      : 'rounded-lg border border-white/10 bg-[#0f0f1a]/40 px-2 py-2 text-xs font-medium text-white/40 sm:text-sm'
+                  }
+                >
+                  🔴 Busy
+                </button>
+              </div>
+            </div>
 
-        <motion.div
-          className="mt-8 flex flex-col gap-4 px-4"
-          variants={listVariants}
-          initial="hidden"
-          animate="show"
-        >
-          <motion.div variants={cardVariants} className="mb-0 flex items-center gap-2">
-            <h2 className="text-lg font-semibold">My Deliveries</h2>
-            <span className="rounded-full bg-[#6c63ff]/25 px-2.5 py-0.5 text-xs font-semibold text-[#b8b3ff]">
-              {activeCount}
-            </span>
-          </motion.div>
+            <section className="space-y-2">
+              <div className="flex items-center justify-between gap-2 pl-4 pr-1">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-[#6c63ff]">
+                  My Deliveries
+                </h2>
+                <span className="shrink-0 rounded-full bg-[#6c63ff]/25 px-2.5 py-0.5 text-xs font-semibold text-[#b8b3ff]">
+                  {activeCount}
+                </span>
+              </div>
 
-          {ORDERS.map((order) => {
-            const st = orderStatus[order.id] ?? 'pending'
-            const advanceLabel = labelForAdvance(st)
-            return (
-              <motion.article
-                key={order.id}
-                variants={cardVariants}
-                className="rounded-2xl border border-white/5 bg-[#1a1a2e] p-5"
+              <motion.ul
+                className="list-none space-y-0 p-0"
+                variants={listVariants}
+                initial="hidden"
+                animate="show"
               >
-                  <div className="mb-4 flex items-start justify-between gap-2">
-                    <p className="text-base font-bold text-white">
-                      Order {order.label}
-                    </p>
-                    {statusBadge(st)}
-                  </div>
-                  <p className="mb-3 text-sm text-white/55">
-                    Customer:{' '}
-                    <span className="text-white/85">{order.customer}</span>
-                  </p>
-                  <div className="mb-2 flex gap-2 text-sm text-white/80">
-                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#a855f7]" />
-                    <span>
-                      <span className="text-white/45">Pickup</span>{' '}
-                      {order.pickup}
-                    </span>
-                  </div>
-                  <div className="mb-3 flex gap-2 text-sm text-white/80">
-                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#00d4aa]" />
-                    <span>
-                      <span className="text-white/45">Dropoff</span>{' '}
-                      {order.dropoff}
-                    </span>
-                  </div>
-                  <p className="mb-4 text-xs text-white/35">{order.distanceKm}</p>
-
-                  <div className="flex flex-wrap gap-2">
-                    {advanceLabel ? (
-                      <button
-                        type="button"
-                        className={buttonClassForAdvance(st)}
-                        onClick={() => advance(order.id, st)}
+                {ORDERS.map((order) => {
+                  const st = orderStatus[order.id] ?? 'pending'
+                  const advanceLabel = labelForAdvance(st)
+                  const borderL = orderCardBorderClass(st)
+                  return (
+                    <motion.li key={order.id} variants={cardVariants} className="list-none">
+                      <article
+                        className={`relative mb-2 rounded-xl border border-white/5 bg-[#16213e] p-4 last:mb-0 border-l-4 ${borderL}`}
                       >
-                        {advanceLabel}
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="rounded-xl border border-[#6c63ff]/50 bg-transparent px-4 py-2 text-sm font-medium text-[#b8b3ff] hover:border-[#6c63ff] hover:bg-[#6c63ff]/10"
-                      onClick={() => window.alert('Route preview (coming soon)')}
-                    >
-                      View Route
-                    </button>
-                  </div>
-              </motion.article>
-            )
-          })}
-        </motion.div>
+                        <div className="mb-3 flex items-start justify-between gap-2 pr-1">
+                          <p className="text-base font-bold text-white">
+                            Order {order.label}
+                          </p>
+                          <div className="shrink-0">{statusBadge(st)}</div>
+                        </div>
+                        <p className="mb-2 text-sm text-white/55">
+                          <span className="text-white/45">Customer</span>{' '}
+                          <span className="text-white/90">{order.customer}</span>
+                        </p>
+                        <div className="mb-1.5 flex gap-2 text-sm text-white/80">
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#a855f7]" />
+                          <span>
+                            <span className="text-white/45">Pickup</span>{' '}
+                            {order.pickup}
+                          </span>
+                        </div>
+                        <div className="mb-2 flex gap-2 text-sm text-white/80">
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#00d4aa]" />
+                          <span>
+                            <span className="text-white/45">Dropoff</span>{' '}
+                            {order.dropoff}
+                          </span>
+                        </div>
+                        <p className="mb-3 text-xs text-white/35">{order.distanceKm}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {advanceLabel ? (
+                            <button
+                              type="button"
+                              className={buttonClassForAdvance(st)}
+                              onClick={() => advance(order.id, st)}
+                            >
+                              {advanceLabel}
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="rounded-lg border border-[#6c63ff]/50 bg-transparent px-3 py-2 text-xs font-medium text-[#b8b3ff] hover:border-[#6c63ff] hover:bg-[#6c63ff]/10 sm:text-sm"
+                            onClick={() => window.alert('Route preview (coming soon)')}
+                          >
+                            View Route
+                          </button>
+                        </div>
+                      </article>
+                    </motion.li>
+                  )
+                })}
+              </motion.ul>
+            </section>
+          </div>
+        </motion.aside>
 
-        <motion.div
-          variants={cardVariants}
-          initial="hidden"
-          animate="show"
-          className="driver-mini-map mx-4 mt-8 overflow-hidden rounded-2xl border border-white/5"
+        <motion.main
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.45, delay: 0.05 }}
+          className="driver-dashboard-map relative h-full min-h-0 min-w-0 flex-1 bg-[#0f0f1a]"
         >
-          <MapContainer
-            center={[31.498, 74.345]}
-            zoom={11}
-            className="z-0 h-[250px] w-full"
-            style={{ height: 250, width: '100%' }}
-            scrollWheelZoom={false}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-              url={CARTO_DARK}
-            />
-            <Marker position={DRIVER_POSITION} icon={driverIcon} />
-            {ORDERS.map((o) => (
-              <Marker key={o.id} position={o.dropLatLng} icon={dropIcon} />
-            ))}
-          </MapContainer>
-        </motion.div>
+          <div className="absolute inset-0 h-full w-full">
+            <MapContainer
+              center={DRIVER_POSITION}
+              zoom={13}
+              className="z-0 h-full w-full min-h-0"
+              style={{ height: '100%', width: '100%' }}
+              scrollWheelZoom
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                url={CARTO_DARK}
+              />
+              <Marker position={DRIVER_POSITION} icon={driverIcon} />
+              {ORDERS.map((o) => (
+                <Marker key={o.id} position={o.dropLatLng} icon={dropIcon} />
+              ))}
+            </MapContainer>
+          </div>
+        </motion.main>
       </div>
     </motion.div>
   )
