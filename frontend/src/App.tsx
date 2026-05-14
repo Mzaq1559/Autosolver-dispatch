@@ -2,6 +2,8 @@ import { motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
+import LoginPage from './pages/auth/LoginPage'
+import RegisterPage from './pages/auth/RegisterPage'
 
 import { AnalyticsPanel } from './components/AnalyticsPanel'
 import type { Driver } from './components/DriversPanel'
@@ -103,6 +105,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="/owner" element={<OwnerDashboard />} />
       </Routes>
     </BrowserRouter>
