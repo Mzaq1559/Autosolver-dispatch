@@ -1,6 +1,6 @@
 # AutoSolver — AI Delivery Dispatch System
 
-An AI-powered delivery dispatch platform that assigns orders to drivers optimally, draws live routes on a map, and tracks deliveries in real time.
+An AI-powered delivery dispatch platform that assigns orders to drivers optimally, draws live routes on a map, and tracks deliveries in real time assigning drivers to deliver specific orders.
 
 ---
 
