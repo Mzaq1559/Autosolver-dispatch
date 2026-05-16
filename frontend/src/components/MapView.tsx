@@ -19,11 +19,7 @@ import type { Order } from './OrdersPanel'
 const CARTO_DARK_MATTER =
   'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
 
-/** Approximate Lahore-area pins for orders (data has no coordinates). */
-const ORDER_POSITION: Record<number, [number, number]> = {
-  1: [31.5248, 74.3565],
-  2: [31.5175, 74.3635],
-}
+// No longer using hardcoded ORDER_POSITION since data now has pickup coordinates.
 
 function driverIcon(status: Driver['status']): L.DivIcon {
   const color = status === 'available' ? '#00d4aa' : '#ff6b6b'
@@ -121,19 +117,18 @@ export function MapView({
             </Popup>
           </Marker>
         ))}
-        {orders.map((o) => {
-          const pos = ORDER_POSITION[o.id]
-          if (!pos) return null
+        {orders.map((o: any) => {
+          if (!o.pickup_lat || !o.pickup_lng) return null
           return (
             <Marker
               key={`o-${o.id}`}
-              position={pos}
+              position={[o.pickup_lat, o.pickup_lng]}
               icon={orderIcons.get(o.id)}
             >
               <Popup>
-                <strong>{o.customer}</strong>
+                <strong>{o.customer_name}</strong>
                 <br />
-                {o.restaurant}
+                {o.restaurant_name}
                 <br />
                 <span style={{ textTransform: 'capitalize' }}>{o.status}</span>
               </Popup>

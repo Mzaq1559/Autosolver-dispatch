@@ -4,10 +4,10 @@ export type OrderStatus = 'assigned' | 'pending' | 'delivered'
 
 export interface Order {
   id: number
-  customer: string
-  restaurant: string
+  customer_name: string
+  restaurant_name: string
   status: OrderStatus
-  driver: string | null
+  driver_name: string | null
 }
 
 const statusStyles: Record<
@@ -41,7 +41,13 @@ const row = {
   show: { opacity: 1, y: 0 },
 }
 
-export function OrdersPanel({ orders }: { orders: Order[] }) {
+export function OrdersPanel({ 
+  orders, 
+  onOrderClick 
+}: { 
+  orders: Order[]
+  onOrderClick?: (order: Order) => void
+}) {
   return (
     <section className="space-y-2">
       <h2 className="pl-4 text-xs font-semibold uppercase tracking-widest text-[#6c63ff]">
@@ -68,7 +74,8 @@ export function OrdersPanel({ orders }: { orders: Order[] }) {
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               whileHover={{ boxShadow: glow }}
               layout
-              className={`relative mb-2 rounded-xl border border-white/5 bg-[#16213e] p-4 last:mb-0 ${s.borderL}`}
+              onClick={() => onOrderClick?.(o)}
+              className={`relative mb-2 rounded-xl border border-white/5 bg-[#16213e] p-4 last:mb-0 ${s.borderL} ${onOrderClick && o.status === 'pending' ? 'cursor-pointer hover:bg-[#1a264a]' : ''}`}
             >
               <span
                 className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${s.badge}`}
@@ -76,11 +83,11 @@ export function OrdersPanel({ orders }: { orders: Order[] }) {
                 {o.status}
               </span>
               <div className="min-w-0 pr-20">
-                <p className="font-bold leading-snug text-white">{o.customer}</p>
-                <p className="mt-1 text-sm text-white/50">{o.restaurant}</p>
-                {o.driver ? (
+                <p className="font-bold leading-snug text-white">{o.customer_name}</p>
+                <p className="mt-1 text-sm text-white/50">{o.restaurant_name}</p>
+                {o.driver_name ? (
                   <p className="mt-2 text-xs font-medium text-[#00d4aa]">
-                    {o.driver}
+                    {o.driver_name}
                   </p>
                 ) : (
                   <p className="mt-2 text-xs italic text-white/35">Unassigned</p>

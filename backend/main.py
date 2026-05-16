@@ -77,6 +77,12 @@ class OrderResponse(OrderBase):
     class Config:
         from_attributes = True
 
+class OrderDetailsResponse(OrderResponse):
+    customer_name: str
+    restaurant_name: str
+    driver_name: Optional[str] = None
+
+
 # --- Endpoints ---
 
 @app.post("/auth/login", response_model=UserResponse)
@@ -97,9 +103,26 @@ def get_drivers(db: Session = Depends(get_db)):
         results.append(d_dict)
     return results
 
-@app.get("/orders", response_model=List[OrderResponse])
+@app.get("/orders", response_model=List[OrderDetailsResponse])
 def get_orders(db: Session = Depends(get_db)):
-    return db.query(models.Order).all()
+    orders = db.query(models.Order).all()
+    results = []
+    for o in orders:
+        o_dict = OrderDetailsResponse.from_orm(o)
+        o_dict.customer_name = o.customer.name if o.customer else "Unknown"
+        o_dict.restaurant_name = o.restaurant.name if o.restaurant else "Unknown"
+        if o.driver and o.driver.user:
+            o_dict.driver_name = o.driver.user.name
+        results.append(o_dict)
+    return results
+
+@app.get("/restaurants", response_model=List[RestaurantResponse])
+def get_restaurants(db: Session = Depends(get_db)):
+    return db.query(models.Restaurant).all()
+
+@app.get("/customers", response_model=List[UserResponse])
+def get_customers(db: Session = Depends(get_db)):
+    return db.query(models.User).filter(models.User.role == "customer").all()
 
 @app.post("/orders", response_model=OrderResponse)
 def create_order(order: OrderCreate, db: Session = Depends(get_db)):
