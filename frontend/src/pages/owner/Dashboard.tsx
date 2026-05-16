@@ -45,7 +45,7 @@ export default function OwnerDashboard() {
 
   useEffect(() => {
     fetchData()
-    const socket = io('http://localhost:8000', { path: '/ws/simulation/socket.io', transports: ['websocket'] })
+    const socket = io('http://localhost:8000', { path: '/ws/simulation', transports: ['websocket'] })
     socketRef.current = socket
     socket.on('connect', () => console.log('Connected to simulation WebSocket'))
 

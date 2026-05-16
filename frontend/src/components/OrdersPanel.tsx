@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { useState, useMemo } from 'react'
 import { Search, X } from 'lucide-react'
 
-export type OrderStatus = 'assigned' | 'pending' | 'completed' | 'cancelled' | 'delivered'
+export type OrderStatus = 'assigned' | 'pending' | 'completed' | 'cancelled' | 'delivered' | 'picked_up' | 'delivering'
 
 export interface Order {
   id: number
@@ -35,6 +35,14 @@ const statusStyles: Record<
   cancelled: {
     badge: 'bg-red-500 text-white',
     borderL: 'border-l-[3px] border-l-red-500',
+  },
+  picked_up: {
+    badge: 'bg-[#00d4aa] text-white',
+    borderL: 'border-l-[3px] border-l-[#00d4aa]',
+  },
+  delivering: {
+    badge: 'bg-[#6c63ff] text-white',
+    borderL: 'border-l-[3px] border-l-[#6c63ff]',
   },
 }
 
@@ -113,7 +121,10 @@ export function OrdersPanel({
 
       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-4 space-y-3 pb-4">
         {filteredOrders.map((o) => {
-          const s = statusStyles[o.status]
+          const s = statusStyles[o.status] || {
+            badge: 'bg-gray-500 text-white',
+            borderL: 'border-l-[3px] border-l-gray-500',
+          }
           const glow =
             o.status === 'assigned'
               ? '0 0 20px rgba(108, 99, 255, 0.4), 0 4px 12px rgba(0,0,0,0.25)'
