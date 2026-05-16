@@ -1,4 +1,7 @@
 from contextlib import asynccontextmanager
+import asyncio
+import socketio
+
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -77,7 +80,10 @@ def seed_drivers():
 async def lifespan(app: FastAPI):
     init_db()
     seed_drivers()
+    # Start simulation broadcast task
+    broadcast_task = asyncio.create_task(broadcast_sim_state())
     yield
+    broadcast_task.cancel()
 
 
 app = FastAPI(
@@ -106,6 +112,43 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+
+# Socket.IO setup
+sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
+sio_app = socketio.ASGIApp(sio)
+app.mount("/ws/simulation", sio_app)
+
+async def broadcast_sim_state():
+    """Background task to broadcast simulation state every 2 seconds."""
+    while True:
+        try:
+            if sim_engine.is_running:
+                db = SessionLocal()
+                try:
+                    state = sim_engine.get_sim_state(db)
+                    await sio.emit('simulation_state', state)
+                finally:
+                    db.close()
+        except Exception as e:
+            print(f"Error in broadcast task: {e}")
+        await asyncio.sleep(2)
+
+
+@app.get("/simulation/state")
+def get_simulation_state(db: Session = Depends(get_db)):
+    return sim_engine.get_sim_state(db)
+
+
+@app.get("/simulation/stats")
+def get_simulation_stats(db: Session = Depends(get_db)):
+    return sim_engine.get_stats(db)
+
+
+@app.post("/simulation/set-speed")
+def set_simulation_speed(speed: float):
+    sim_engine.set_speed(speed)
+    return {"message": f"Speed set to {speed}"}
 
 
 @app.get("/")
@@ -144,7 +187,8 @@ def get_simulation_status():
     return {
         "is_running": sim_engine.is_running,
         "is_paused": sim_engine._is_paused,
-        "current_time": sim_engine.current_time.isoformat()
+        "current_time": sim_engine.current_time.isoformat(),
+        "speed_multiplier": sim_engine.speed_multiplier
     }
 
 

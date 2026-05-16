@@ -3,7 +3,7 @@ import logging
 import random
 import math
 from datetime import datetime, timedelta
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from database import SessionLocal
 from models import Order, Driver, Restaurant, Customer
 from ws_manager import manager
@@ -20,6 +20,7 @@ class SimulationEngine:
         self.is_running = False
         self._is_paused = False
         self.base_speed_kmph = 40.0 # Default speed for drivers
+        self._completed_orders_timestamps = [] # Track for orders per minute
 
     async def run(self):
         """Main simulation loop."""
@@ -188,8 +189,6 @@ class SimulationEngine:
 
     def complete_deliveries(self, db):
         """Complete orders that have reached delivery time or location."""
-        # Check orders where current_time >= estimated_delivery_time OR status is 'arrived'
-        # To follow prompt: "Check orders where current_time >= estimated_delivery_time"
         completed_orders = db.execute(
             select(Order).where(
                 Order.status.in_(['picked_up', 'arrived']),
@@ -200,12 +199,13 @@ class SimulationEngine:
         for order in completed_orders:
             order.status = 'completed'
             order.actual_delivery_time = self.current_time
+            self._completed_orders_timestamps.append(self.current_time)
             
             driver = db.get(Driver, order.driver_id)
             if driver:
                 driver.current_orders_count -= 1
                 if driver.current_orders_count == 0:
-                    driver.status = 'idle' # Prompt says 'idle'
+                    driver.status = 'available'
             
             logger.info(f"Order {order.id} COMPLETED at {self.current_time}")
 
@@ -218,19 +218,6 @@ class SimulationEngine:
         if not busy_drivers:
             return
             
-        # Clear traffic after 10 sim-minutes
-        for d in busy_drivers:
-            if d.is_in_traffic:
-                # We need to track when traffic started. Reusing last_location_update_at might be tricky
-                # if we update it every tick. Let's assume we store traffic start time or just 
-                # check if 10 mins passed since a "traffic_start" (we'll use a hack or just probability)
-                # To be precise, let's use a dedicated field if we can, or just check 
-                # if current_time >= traffic_start + 10 mins.
-                # Since models.py doesn't have traffic_start, we'll use a simplified check or
-                # assume traffic clearing is also random but with duration.
-                # Actually, I'll just check if it's been active.
-                pass # Logic below handles it
-        
         # Following prompt: "Randomly select 15% of active drivers"
         active_drivers = [d for d in busy_drivers if not d.is_in_traffic]
         num_to_traffic = max(1, int(len(busy_drivers) * 0.15))
@@ -247,23 +234,10 @@ class SimulationEngine:
                         order.estimated_delivery_time += timedelta(minutes=delay)
                 
                 logger.info(f"Traffic applied to Driver {d.name}. Delay: {delay} min.")
-                # We'll use a hidden attribute on the driver object for this session to track when to clear
-                d._traffic_start_time = self.current_time
 
         # Clear traffic after 10 sim-minutes
         for d in busy_drivers:
             if d.is_in_traffic:
-                # If we don't have _traffic_start_time (e.g. from previous tick), we might skip.
-                # But since this is a singleton in memory, it might work if we keep the objects.
-                # However, db.execute returns fresh objects.
-                # Better: Use a simple probability or just let it clear after some time.
-                # Let's assume for now that if we can't track it, we'll just randomly clear.
-                # OR: We can use a field in the DB if available.
-                # Since I can't change the DB schema easily without a migration, 
-                # I'll use a random chance that approximates 10 sim-minutes.
-                # 10 sim-minutes = 600 sim-seconds. 
-                # With 12 sim-seconds per tick, 10 sim-minutes is 50 ticks.
-                # Probability to clear = 1/50 per tick.
                 if random.random() < (1.0 / 50.0):
                     d.is_in_traffic = False
                     d.traffic_delay_minutes = 0
@@ -289,27 +263,63 @@ class SimulationEngine:
         new_lng = curr_lng + (dest_lng - curr_lng) * ratio
         return new_lat, new_lng, False
 
+    def get_stats(self, db):
+        """Calculate aggregate statistics."""
+        total_orders = db.execute(select(func.count(Order.id)).where(Order.status == 'completed')).scalar() or 0
+        active_deliveries = db.execute(select(func.count(Order.id)).where(Order.status.in_(['assigned', 'picked_up', 'delivering']))).scalar() or 0
+        available_drivers = db.execute(select(func.count(Driver.id)).where(Driver.status == 'available')).scalar() or 0
+        
+        # Avg delivery time (actual_delivery_time - scheduled_time) in minutes
+        avg_time_query = db.execute(
+            select(func.avg(
+                (func.julianday(Order.actual_delivery_time) - func.julianday(Order.scheduled_time)) * 1440.0
+            )).where(Order.status == 'completed')
+        ).scalar()
+        avg_delivery_time = round(avg_time_query, 2) if avg_time_query else 0
+        
+        # Orders per minute (sliding window of 60 sim-seconds)
+        one_min_ago = self.current_time - timedelta(minutes=1)
+        self._completed_orders_timestamps = [t for t in self._completed_orders_timestamps if t >= one_min_ago]
+        orders_per_minute = len(self._completed_orders_timestamps)
+        
+        return {
+            "total_orders_processed": total_orders,
+            "active_deliveries": active_deliveries,
+            "available_drivers": available_drivers,
+            "avg_delivery_time": avg_delivery_time,
+            "orders_per_minute": orders_per_minute
+        }
+
     def get_sim_state(self, db):
         """Serialize current state for broadcasting."""
         drivers = db.execute(select(Driver)).scalars().all()
+        # Map internal status to 'delivering' for the frontend if needed
         active_orders = db.execute(
-            select(Order).where(Order.status.in_(['pending', 'assigned', 'picked_up']))
+            select(Order).where(Order.status.in_(['assigned', 'picked_up', 'delivering']))
         ).scalars().all()
         
         return {
-            "type": "SIM_TICK",
-            "payload": {
-                "current_time": self.current_time.isoformat(),
-                "drivers": [
-                    {"id": d.id, "name": d.name, "lat": d.lat, "lng": d.lng, "status": d.status, "in_traffic": d.is_in_traffic}
-                    for d in drivers
-                ],
-                "active_orders": [
-                    {"id": o.id, "status": o.status, "lat": o.pickup_lat, "lng": o.pickup_lng, "driver": o.driver_name}
-                    for o in active_orders
-                ]
-            }
+            "current_time": self.current_time.isoformat(),
+            "active_orders": [
+                {
+                    "id": o.id, 
+                    "status": o.status if o.status != 'picked_up' else 'delivering', # Normalizing to delivering
+                    "lat": o.pickup_lat if o.status == 'assigned' else o.dropoff_lat, 
+                    "lng": o.pickup_lng if o.status == 'assigned' else o.dropoff_lng,
+                    "driver_name": o.driver_name
+                }
+                for o in active_orders
+            ],
+            "all_drivers": [
+                {"id": d.id, "name": d.name, "lat": d.lat, "lng": d.lng, "status": d.status}
+                for d in drivers
+            ],
+            "statistics": self.get_stats(db)
         }
+
+    def set_speed(self, multiplier):
+        self.speed_multiplier = multiplier
+        logger.info(f"Speed multiplier set to {multiplier}")
 
     def pause(self):
         self._is_paused = True
