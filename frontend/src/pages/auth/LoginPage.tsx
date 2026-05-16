@@ -1,13 +1,44 @@
 import { motion } from 'framer-motion'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  
+  const { login } = useAuth()
+  const navigate = useNavigate()
 
-  const handleSignIn = () => {
-    console.log({ email, password })
+  const handleSignIn = async () => {
+    try {
+      setError('')
+      setIsLoading(true)
+      const response = await fetch('http://localhost:8000/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Invalid email or password')
+      }
+
+      const userData = await response.json()
+      login(userData)
+      navigate(`/${userData.role}`)
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during sign in')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -21,6 +52,12 @@ export default function LoginPage() {
         <div className="text-center text-2xl font-bold text-white">⚡ AutoSolver</div>
         <h1 className="mt-6 text-center text-2xl font-bold text-white">Welcome Back</h1>
         <p className="mt-1 text-center text-white/50">Sign in to your account</p>
+
+        {error && (
+          <div className="mt-6 rounded-xl bg-red-500/10 p-4 text-center text-sm font-medium text-red-500 border border-red-500/20">
+            {error}
+          </div>
+        )}
 
         <div className="mt-8 flex flex-col gap-4">
           <input
@@ -44,9 +81,10 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={handleSignIn}
-          className="mt-6 w-full rounded-xl bg-[#6c63ff] py-3 font-bold text-white transition hover:shadow-[0_0_24px_rgba(108,99,255,0.55)] focus:outline-none focus:ring-2 focus:ring-[#6c63ff]/60"
+          disabled={isLoading}
+          className="mt-6 w-full rounded-xl bg-[#6c63ff] py-3 font-bold text-white transition hover:shadow-[0_0_24px_rgba(108,99,255,0.55)] focus:outline-none focus:ring-2 focus:ring-[#6c63ff]/60 disabled:opacity-50 disabled:hover:shadow-none"
         >
-          Sign In
+          {isLoading ? 'Signing In...' : 'Sign In'}
         </button>
 
         <div className="mt-6 flex items-center gap-3">
