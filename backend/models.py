@@ -1,6 +1,7 @@
+import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, func, Boolean, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
@@ -20,6 +21,18 @@ class User(Base):
     orders = relationship("Order", back_populates="customer")
 
 
+class Customer(Base):
+    __tablename__ = "customers"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    phone: Mapped[str] = mapped_column(String, nullable=False)
+    address: Mapped[str] = mapped_column(String, nullable=False)
+    latitude: Mapped[float] = mapped_column(Float, nullable=False)
+    longitude: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class Driver(Base):
     __tablename__ = "drivers"
 
@@ -31,6 +44,15 @@ class Driver(Base):
     capacity: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[str] = mapped_column(String, default="available")
     rating: Mapped[float] = mapped_column(Float, default=5.0)
+    
+    # Simulation fields
+    max_concurrent_orders: Mapped[int] = mapped_column(Integer, default=3)
+    current_orders_count: Mapped[int] = mapped_column(Integer, default=0)
+    is_in_traffic: Mapped[bool] = mapped_column(Boolean, default=False)
+    traffic_delay_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    last_location_update_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    vehicle_type: Mapped[str] = mapped_column(String, nullable=True)
+    
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     user = relationship("User", back_populates="driver_profile")
@@ -46,6 +68,7 @@ class Restaurant(Base):
     address: Mapped[str] = mapped_column(String, nullable=False)
     lat: Mapped[float] = mapped_column(Float, nullable=False)
     lng: Mapped[float] = mapped_column(Float, nullable=False)
+    cuisine_type: Mapped[str] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     orders = relationship("Order", back_populates="restaurant")
@@ -66,6 +89,16 @@ class Order(Base):
     deadline_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
     price: Mapped[float] = mapped_column(Float, nullable=False)
     status: Mapped[str] = mapped_column(String, default="pending")
+    
+    # Simulation fields
+    scheduled_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    estimated_pickup_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    estimated_delivery_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    actual_pickup_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    actual_delivery_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    distance_km: Mapped[float] = mapped_column(Float, nullable=True)
+    driver_name: Mapped[str] = mapped_column(String, nullable=True)
+    
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     customer = relationship("User", back_populates="orders")
