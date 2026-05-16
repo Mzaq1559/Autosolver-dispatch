@@ -6,8 +6,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, get_db, init_db
-from models import Driver, Order
-from schemas import DriverCreate, DriverRead, OrderCreate, OrderRead
+from models import Assignment, Driver, Order
+from schemas import (
+    AssignmentRead,
+    AssignmentRunResponse,
+    DriverCreate,
+    DriverRead,
+    OrderCreate,
+    OrderRead,
+)
 
 
 def seed_drivers():
@@ -138,3 +145,144 @@ def get_order(order_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Order not found")
 
     return order
+import math
+
+
+def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """
+    Calculate distance between two geo points in kilometers.
+
+    This is only used for a temporary baseline assignment.
+    The final optimization algorithm can replace this later.
+    """
+    radius = 6371
+
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lng = math.radians(lng2 - lng1)
+
+    a = (
+        math.sin(delta_lat / 2) ** 2
+        + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lng / 2) ** 2
+    )
+
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return radius * c
+
+
+def fallback_assign_orders(orders: list[Order], drivers: list[Driver]) -> list[dict]:
+    """
+    Temporary dispatch baseline.
+
+    This is not the final algorithm.
+    It exists so the backend can run end-to-end before the real optimizer is ready.
+
+    Expected output:
+    [
+        {
+            "order_id": 1,
+            "driver_id": 3,
+            "score": 87.5
+        }
+    ]
+    """
+    available_drivers = [driver for driver in drivers if driver.status == "available"]
+    driver_load = {driver.id: 0 for driver in available_drivers}
+
+    assignment_results = []
+
+    for order in orders:
+        best_driver = None
+        best_score = -1
+
+        for driver in available_drivers:
+            if driver_load[driver.id] >= driver.capacity:
+                continue
+
+            distance_to_pickup = haversine_km(
+                order.pickup_lat,
+                order.pickup_lng,
+                driver.lat,
+                driver.lng,
+            )
+
+            score = max(0, 100 - distance_to_pickup * 5)
+
+            if score > best_score:
+                best_score = score
+                best_driver = driver
+
+        if best_driver is not None:
+            driver_load[best_driver.id] += 1
+            assignment_results.append(
+                {
+                    "order_id": order.id,
+                    "driver_id": best_driver.id,
+                    "score": round(best_score, 2),
+                }
+            )
+
+    return assignment_results
+
+
+@app.post("/assignments/run", response_model=AssignmentRunResponse)
+def run_assignment(db: Session = Depends(get_db)):
+    pending_orders = db.execute(
+        select(Order).where(Order.status == "pending")
+    ).scalars().all()
+
+    available_drivers = db.execute(
+        select(Driver).where(Driver.status == "available")
+    ).scalars().all()
+
+    if not pending_orders:
+        return {
+            "message": "No pending orders to assign.",
+            "created_count": 0,
+            "assignments": [],
+        }
+
+    if not available_drivers:
+        return {
+            "message": "No available drivers.",
+            "created_count": 0,
+            "assignments": [],
+        }
+
+    assignment_results = fallback_assign_orders(pending_orders, available_drivers)
+
+    created_assignments = []
+
+    for item in assignment_results:
+        assignment = Assignment(
+            order_id=item["order_id"],
+            driver_id=item["driver_id"],
+            score=item["score"],
+            status="assigned",
+        )
+
+        db.add(assignment)
+
+        order = db.get(Order, item["order_id"])
+        if order is not None:
+            order.status = "assigned"
+
+        created_assignments.append(assignment)
+
+    db.commit()
+
+    for assignment in created_assignments:
+        db.refresh(assignment)
+
+    return {
+        "message": f"Created {len(created_assignments)} assignments.",
+        "created_count": len(created_assignments),
+        "assignments": created_assignments,
+    }
+
+
+@app.get("/assignments", response_model=list[AssignmentRead])
+def get_assignments(db: Session = Depends(get_db)):
+    result = db.execute(select(Assignment).order_by(Assignment.created_at.desc()))
+    return result.scalars().all()
