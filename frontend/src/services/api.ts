@@ -29,4 +29,7 @@ export const api = {
   assignDriver: (orderId: number, driverId: number) => fetchApi(`/orders/${orderId}/assign?driver_id=${driverId}`, {
     method: 'PUT'
   }),
+  updateOrderStatus: (orderId: number, status: string) => fetchApi(`/orders/${orderId}/status?status=${status}`, {
+    method: 'PUT'
+  }),
 };
