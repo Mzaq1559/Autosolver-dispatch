@@ -90,7 +90,7 @@ export function MapView({
   drivers,
   activeOrders = [],
 }: MapViewProps) {
-  const initialCenter: [number, number] = [31.5204, 74.3587]
+  const initialCenter: [number, number] = [38.4167, 112.7333]
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null)
   const [mapCenter, setMapCenter] = useState<L.LatLng | null>(null)
 

@@ -32,9 +32,9 @@ def seed_drivers():
         if existing_driver:
             return
         drivers = [
-            Driver(name="Ali", lat=31.5204, lng=74.3587, capacity=2, status="available"),
-            Driver(name="Usman", lat=31.5304, lng=74.3687, capacity=2, status="available"),
-            Driver(name="Bilal", lat=31.5104, lng=74.3487, capacity=1, status="available"),
+            Driver(name="Ali", lat=38.4167, lng=112.7333, capacity=2, status="available"),
+            Driver(name="Usman", lat=38.4267, lng=112.7433, capacity=2, status="available"),
+            Driver(name="Bilal", lat=38.4067, lng=112.7233, capacity=1, status="available"),
         ]
         db.add_all(drivers)
         db.commit()
@@ -74,8 +74,8 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
-sio_app = socketio.ASGIApp(sio, socketio_path='simulation/socket.io')
-app.mount("/ws", sio_app)
+sio_app = socketio.ASGIApp(sio)
+app.mount("/ws/simulation", sio_app)
 
 async def broadcast_sim_state():
     """Background task to broadcast simulation state every 2 seconds with compression."""
@@ -85,7 +85,7 @@ async def broadcast_sim_state():
                 db = SessionLocal()
                 try:
                     state = sim_engine.get_sim_state(db)
-                    await sio.emit('simulation_state', state, compress=True)
+                    await sio.emit('simulation_state', state)
                 finally:
                     db.close()
         except Exception as e:

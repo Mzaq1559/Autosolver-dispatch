@@ -230,7 +230,7 @@ class SimulationEngine:
                 d.traffic_delay_minutes = delay
                 # Add delay to their ETAs
                 for order in d.orders:
-                    if order.status in ['assigned', 'picked_up']:
+                    if order.status in ['assigned', 'picked_up'] and order.estimated_delivery_time:
                         order.estimated_delivery_time += timedelta(minutes=delay)
                 
                 logger.info(f"Traffic applied to Driver {d.name}. Delay: {delay} min.")
