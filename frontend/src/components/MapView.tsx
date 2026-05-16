@@ -1,6 +1,10 @@
 import L from 'leaflet'
 // @ts-ignore
 import MarkerClusterGroup from 'react-leaflet-cluster'
+import { useMemo, useState, useEffect } from 'react'
+import { MapContainer, Marker, Popup, TileLayer, Polyline, Tooltip, useMapEvents } from 'react-leaflet'
+
+import type { Driver } from './DriversPanel'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Leaflet default icon URL shim
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -9,11 +13,6 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
-
-import { useMemo } from 'react'
-import { MapContainer, Marker, Popup, TileLayer, Polyline, Tooltip } from 'react-leaflet'
-
-import type { Driver } from './DriversPanel'
 
 /** CartoDB Dark Matter (Carto dark basemap). */
 const CARTO_DARK_MATTER =
@@ -55,20 +54,79 @@ interface MapViewProps {
   activeOrders?: any[]
 }
 
+// Helper to calculate distance for route limiting
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  return Math.sqrt(Math.pow(lat2 - lat1, 2) + Math.pow(lon2 - lon1, 2))
+}
+
+function MapStateTracker({ 
+  setBounds, 
+  setCenter 
+}: { 
+  setBounds: (b: L.LatLngBounds) => void, 
+  setCenter: (c: L.LatLng) => void 
+}) {
+  const map = useMapEvents({
+    moveend: () => {
+      setBounds(map.getBounds())
+      setCenter(map.getCenter())
+    },
+    zoomend: () => {
+      setBounds(map.getBounds())
+      setCenter(map.getCenter())
+    },
+  })
+
+  // Initial bounds
+  useEffect(() => {
+    setBounds(map.getBounds())
+    setCenter(map.getCenter())
+  }, [map, setBounds, setCenter])
+
+  return null
+}
+
 export function MapView({
   drivers,
   activeOrders = [],
 }: MapViewProps) {
-  const center: [number, number] = [31.5204, 74.3587]
+  const initialCenter: [number, number] = [31.5204, 74.3587]
+  const [bounds, setBounds] = useState<L.LatLngBounds | null>(null)
+  const [mapCenter, setMapCenter] = useState<L.LatLng | null>(null)
 
-  // Routes data
+  // Debounced update for performance (Max 2 FPS)
+  const [deferredBounds, setDeferredBounds] = useState<L.LatLngBounds | null>(null)
+  const [deferredCenter, setDeferredCenter] = useState<L.LatLng | null>(null)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDeferredBounds(bounds)
+      setDeferredCenter(mapCenter)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [bounds, mapCenter])
+
+  // Filter markers by bounds
+  const visibleDrivers = useMemo(() => {
+    if (!deferredBounds) return drivers
+    return drivers.filter(d => deferredBounds.contains([d.lat, d.lng]))
+  }, [drivers, deferredBounds])
+
+  const visibleOrders = useMemo(() => {
+    if (!deferredBounds) return activeOrders
+    return activeOrders.filter(o => {
+      const lat = o.status === 'assigned' ? o.pickup_lat : o.dropoff_lat
+      const lng = o.status === 'assigned' ? o.pickup_lng : o.dropoff_lng
+      return lat && lng && deferredBounds.contains([lat, lng])
+    })
+  }, [activeOrders, deferredBounds])
+
+  // Routes data - Limited to 100 nearest to center
   const routes = useMemo(() => {
-    return activeOrders.map((order) => {
+    const allRoutes = activeOrders.map((order) => {
       const driver = drivers.find((d) => d.id === order.driver_id)
       if (!driver) return null
 
-      // Purple = Driver to Restaurant (assigned)
-      // Teal = Restaurant to Customer (delivering/picked_up)
       const color = order.status === 'assigned' ? '#6c63ff' : '#00d4aa'
       const dashArray = driver.is_in_traffic ? '5, 10' : undefined
       const weight = driver.is_in_traffic ? 4 : 3
@@ -83,6 +141,11 @@ export function MapView({
         positions.push([order.dropoff_lat, order.dropoff_lng])
       }
 
+      // Calculate distance to map center for priority
+      const dist = deferredCenter 
+        ? getDistance(driver.lat, driver.lng, deferredCenter.lat, deferredCenter.lng)
+        : 0
+
       return {
         id: order.id,
         positions,
@@ -90,9 +153,15 @@ export function MapView({
         dashArray,
         weight,
         opacity,
+        dist
       }
-    }).filter(Boolean)
-  }, [activeOrders, drivers])
+    }).filter(Boolean) as any[]
+
+    // Sort by distance and take top 100
+    return allRoutes
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 100)
+  }, [activeOrders, drivers, deferredCenter])
 
   return (
     <div
@@ -135,19 +204,21 @@ export function MapView({
         }
       `}</style>
       <MapContainer
-        center={center}
+        center={initialCenter}
         zoom={13}
         className="z-0 h-full w-full min-h-0"
         style={{ height: '100%', width: '100%' }}
         scrollWheelZoom
       >
+        <MapStateTracker setBounds={setBounds} setCenter={setMapCenter} />
+        
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
           url={CARTO_DARK_MATTER}
         />
 
-        <MarkerClusterGroup chunkedLoading>
-          {drivers.map((d) => (
+        <MarkerClusterGroup chunkedLoading spiderfyOnMaxZoom={false}>
+          {visibleDrivers.map((d) => (
             <Marker
               key={`d-${d.id}`}
               position={[d.lat, d.lng]}
@@ -171,11 +242,8 @@ export function MapView({
               </Popup>
             </Marker>
           ))}
-        </MarkerClusterGroup>
 
-        {activeOrders.map((o: any) => {
-          if (!o.pickup_lat || !o.pickup_lng) return null
-          return (
+          {visibleOrders.map((o: any) => (
             <Marker
               key={`o-${o.id}`}
               position={o.status === 'assigned' ? [o.pickup_lat, o.pickup_lng] : [o.dropoff_lat, o.dropoff_lng]}
@@ -189,8 +257,8 @@ export function MapView({
                 <span style={{ textTransform: 'capitalize' }}>{o.status}</span>
               </Popup>
             </Marker>
-          )
-        })}
+          ))}
+        </MarkerClusterGroup>
 
         {routes.map((route: any) => (
           <Polyline

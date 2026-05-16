@@ -299,43 +299,48 @@ class SimulationEngine:
             "orders_by_status": orders_by_status
         }
 
-    def get_sim_state(self, db):
-        """Serialize current state for broadcasting."""
+    def get_sim_state(self, db, full=False):
+        """Serialize current state for broadcasting. Supports delta updates."""
         drivers = db.execute(select(Driver)).scalars().all()
         active_orders = db.execute(
             select(Order).where(Order.status.in_(['assigned', 'picked_up', 'delivering', 'arrived']))
         ).scalars().all()
         
+        current_drivers = []
+        for d in drivers:
+            current_drivers.append({
+                "id": d.id, 
+                "name": d.name, 
+                "lat": round(d.lat, 5), 
+                "lng": round(d.lng, 5), 
+                "status": d.status,
+                "is_in_traffic": d.is_in_traffic,
+                "current_orders_count": d.current_orders_count
+            })
+
+        current_orders = []
+        for o in active_orders:
+            current_orders.append({
+                "id": o.id, 
+                "status": o.status if o.status != 'picked_up' else 'delivering',
+                "lat": round(o.pickup_lat if o.status == 'assigned' else o.dropoff_lat, 5), 
+                "lng": round(o.pickup_lng if o.status == 'assigned' else o.dropoff_lng, 5),
+                "pickup_lat": o.pickup_lat,
+                "pickup_lng": o.pickup_lng,
+                "dropoff_lat": o.dropoff_lat,
+                "dropoff_lng": o.dropoff_lng,
+                "driver_name": o.driver_name,
+                "driver_id": o.driver_id
+            })
+
+        stats = self.get_stats(db)
+        
         return {
             "current_time": self.current_time.isoformat(),
-            "active_orders": [
-                {
-                    "id": o.id, 
-                    "status": o.status if o.status != 'picked_up' else 'delivering',
-                    "lat": o.pickup_lat if o.status == 'assigned' else o.dropoff_lat, 
-                    "lng": o.pickup_lng if o.status == 'assigned' else o.dropoff_lng,
-                    "pickup_lat": o.pickup_lat,
-                    "pickup_lng": o.pickup_lng,
-                    "dropoff_lat": o.dropoff_lat,
-                    "dropoff_lng": o.dropoff_lng,
-                    "driver_name": o.driver_name,
-                    "driver_id": o.driver_id
-                }
-                for o in active_orders
-            ],
-            "all_drivers": [
-                {
-                    "id": d.id, 
-                    "name": d.name, 
-                    "lat": d.lat, 
-                    "lng": d.lng, 
-                    "status": d.status,
-                    "is_in_traffic": d.is_in_traffic,
-                    "current_orders_count": d.current_orders_count
-                }
-                for d in drivers
-            ],
-            "statistics": self.get_stats(db)
+            "active_orders": current_orders,
+            "all_drivers": current_drivers,
+            "statistics": stats,
+            "is_delta": not full
         }
 
     def set_speed(self, multiplier):
