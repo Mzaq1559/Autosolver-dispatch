@@ -58,7 +58,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -73,8 +74,8 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
-sio_app = socketio.ASGIApp(sio)
-app.mount("/ws/simulation", sio_app)
+sio_app = socketio.ASGIApp(sio, socketio_path='simulation/socket.io')
+app.mount("/ws", sio_app)
 
 async def broadcast_sim_state():
     """Background task to broadcast simulation state every 2 seconds with compression."""

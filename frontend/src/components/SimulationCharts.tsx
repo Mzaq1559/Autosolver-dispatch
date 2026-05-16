@@ -42,7 +42,7 @@ export function SimulationCharts({ statsHistory, currentStats }: SimulationChart
         <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-[#6c63ff]">
           Orders Per Minute
         </h3>
-        <div className="h-48 w-full">
+        <div className="h-48 w-full" style={{ height: 192 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={statsHistory}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
@@ -73,7 +73,7 @@ export function SimulationCharts({ statsHistory, currentStats }: SimulationChart
         <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-[#00d4aa]">
           Orders By Status
         </h3>
-        <div className="h-48 w-full">
+        <div className="h-48 w-full" style={{ height: 192 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={barData}>
               <XAxis dataKey="name" stroke="#ffffff40" fontSize={10} />
@@ -93,7 +93,7 @@ export function SimulationCharts({ statsHistory, currentStats }: SimulationChart
         <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-[#fbbf24]">
           Driver Utilization
         </h3>
-        <div className="h-48 w-full">
+        <div className="h-48 w-full" style={{ height: 192 }}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -118,7 +118,7 @@ export function SimulationCharts({ statsHistory, currentStats }: SimulationChart
         <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-[#ff6b6b]">
           Cumulative Orders
         </h3>
-        <div className="h-48 w-full">
+        <div className="h-48 w-full" style={{ height: 192 }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={statsHistory}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
