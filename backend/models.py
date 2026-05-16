@@ -18,19 +18,20 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     driver_profile = relationship("Driver", back_populates="user", uselist=False)
-    orders = relationship("Order", back_populates="customer")
 
 
 class Customer(Base):
     __tablename__ = "customers"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     phone: Mapped[str] = mapped_column(String, nullable=False)
     address: Mapped[str] = mapped_column(String, nullable=False)
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    orders = relationship("Order", back_populates="customer")
 
 
 class Driver(Base):
@@ -44,6 +45,7 @@ class Driver(Base):
     capacity: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[str] = mapped_column(String, default="available")
     rating: Mapped[float] = mapped_column(Float, default=5.0)
+    phone: Mapped[str] = mapped_column(String, nullable=True)
     
     # Simulation fields
     max_concurrent_orders: Mapped[int] = mapped_column(Integer, default=3)
@@ -78,7 +80,7 @@ class Order(Base):
     __tablename__ = "orders"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    customer_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), nullable=True)
     driver_id: Mapped[int] = mapped_column(ForeignKey("drivers.id"), nullable=True)
     restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=True)
     
@@ -101,7 +103,7 @@ class Order(Base):
     
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    customer = relationship("User", back_populates="orders")
+    customer = relationship("Customer", back_populates="orders")
     driver = relationship("Driver", back_populates="orders")
     restaurant = relationship("Restaurant", back_populates="orders")
     assignments = relationship("Assignment", back_populates="driver") # This seems wrong in original, should be order
