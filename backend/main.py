@@ -4,9 +4,12 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from fastapi import WebSocket, WebSocketDisconnect
+import json
 
 from database import SessionLocal, get_db, init_db
 from models import Assignment, Driver, Order, User, Restaurant
+from simulation_engine import engine as sim_engine
 from schemas import (
     AssignmentRead,
     AssignmentRunResponse,
@@ -19,6 +22,9 @@ from schemas import (
     UserLogin,
     RestaurantRead,
 )
+
+
+from ws_manager import manager
 
 
 def seed_drivers():
@@ -91,9 +97,55 @@ app.add_middleware(
 )
 
 
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Just keep the connection alive, we mostly use it for broadcasting
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+
 @app.get("/")
 def root():
     return {"message": "AutoSolver API is running"}
+
+
+@app.post("/simulation/start")
+async def start_simulation():
+    if sim_engine.is_running:
+        return {"message": "Simulation is already running"}
+    asyncio.create_task(sim_engine.run())
+    return {"message": "Simulation started"}
+
+
+@app.post("/simulation/pause")
+def pause_simulation():
+    sim_engine.pause()
+    return {"message": "Simulation paused"}
+
+
+@app.post("/simulation/resume")
+def resume_simulation():
+    sim_engine.resume()
+    return {"message": "Simulation resumed"}
+
+
+@app.post("/simulation/stop")
+def stop_simulation():
+    sim_engine.stop()
+    return {"message": "Simulation stopped"}
+
+
+@app.get("/simulation/status")
+def get_simulation_status():
+    return {
+        "is_running": sim_engine.is_running,
+        "is_paused": sim_engine._is_paused,
+        "current_time": sim_engine.current_time.isoformat()
+    }
 
 
 @app.post("/auth/register", response_model=UserRead)
