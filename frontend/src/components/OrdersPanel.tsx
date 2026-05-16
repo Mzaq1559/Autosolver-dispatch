@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion'
-import { FixedSizeList as List } from 'react-window'
 import { useState, useMemo } from 'react'
 import { Search, X } from 'lucide-react'
 
@@ -62,49 +61,6 @@ export function OrdersPanel({
     })
   }, [orders, searchTerm, statusFilter])
 
-  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const o = filteredOrders[index]
-    if (!o) return null
-    const s = statusStyles[o.status]
-    const glow =
-      o.status === 'assigned'
-        ? '0 0 20px rgba(108, 99, 255, 0.4), 0 4px 12px rgba(0,0,0,0.25)'
-        : o.status === 'pending'
-          ? '0 0 20px rgba(251, 191, 36, 0.35), 0 4px 12px rgba(0,0,0,0.25)'
-          : o.status === 'completed' || o.status === 'delivered'
-            ? '0 0 20px rgba(16, 185, 129, 0.4), 0 4px 12px rgba(0,0,0,0.25)'
-            : '0 0 20px rgba(239, 68, 68, 0.4), 0 4px 12px rgba(0,0,0,0.25)'
-
-    return (
-      <div style={{ ...style, padding: '0 16px 8px 16px' }}>
-        <motion.div
-          key={o.id}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          whileHover={{ boxShadow: glow }}
-          onClick={() => onOrderClick?.(o)}
-          className={`relative h-full rounded-xl border border-white/5 bg-[#16213e] p-4 ${s.borderL} ${onOrderClick && o.status === 'pending' ? 'cursor-pointer hover:bg-[#1a264a]' : ''}`}
-        >
-          <span
-            className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${s.badge}`}
-          >
-            {o.status}
-          </span>
-          <div className="min-w-0 pr-20">
-            <p className="font-bold leading-snug text-white truncate">#{o.id} {o.customer_name}</p>
-            <p className="mt-1 text-sm text-white/50 truncate">{o.restaurant_name}</p>
-            {o.driver_name ? (
-              <p className="mt-2 text-xs font-medium text-[#00d4aa]">
-                {o.driver_name}
-              </p>
-            ) : (
-              <p className="mt-2 text-xs italic text-white/35">Unassigned</p>
-            )}
-          </div>
-        </motion.div>
-      </div>
-    )
-  }
 
   return (
     <section className="flex h-[600px] flex-col space-y-3">
@@ -155,16 +111,46 @@ export function OrdersPanel({
         </div>
       </div>
 
-      <div className="flex-1 min-h-0">
-        <List
-          height={480}
-          itemCount={filteredOrders.length}
-          itemSize={105}
-          width="100%"
-          className="scrollbar-hide"
-        >
-          {Row}
-        </List>
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide px-4 space-y-3 pb-4">
+        {filteredOrders.map((o) => {
+          const s = statusStyles[o.status]
+          const glow =
+            o.status === 'assigned'
+              ? '0 0 20px rgba(108, 99, 255, 0.4), 0 4px 12px rgba(0,0,0,0.25)'
+              : o.status === 'pending'
+                ? '0 0 20px rgba(251, 191, 36, 0.35), 0 4px 12px rgba(0,0,0,0.25)'
+                : o.status === 'completed' || o.status === 'delivered'
+                  ? '0 0 20px rgba(16, 185, 129, 0.4), 0 4px 12px rgba(0,0,0,0.25)'
+                  : '0 0 20px rgba(239, 68, 68, 0.4), 0 4px 12px rgba(0,0,0,0.25)'
+
+          return (
+            <motion.div
+              key={o.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ boxShadow: glow }}
+              onClick={() => onOrderClick?.(o)}
+              className={`relative rounded-xl border border-white/5 bg-[#16213e] p-4 ${s.borderL} ${onOrderClick && o.status === 'pending' ? 'cursor-pointer hover:bg-[#1a264a]' : ''}`}
+            >
+              <span
+                className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${s.badge}`}
+              >
+                {o.status}
+              </span>
+              <div className="min-w-0 pr-20">
+                <p className="font-bold leading-snug text-white truncate">#{o.id} {o.customer_name}</p>
+                <p className="mt-1 text-sm text-white/50 truncate">{o.restaurant_name}</p>
+                {o.driver_name ? (
+                  <p className="mt-2 text-xs font-medium text-[#00d4aa]">
+                    {o.driver_name}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs italic text-white/35">Unassigned</p>
+                )}
+              </div>
+            </motion.div>
+          )
+        })}
       </div>
     </section>
   )
