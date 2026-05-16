@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, get_db, init_db
-from models import Assignment, Driver, Order
+from models import Assignment, Driver, Order, User, Restaurant
 from schemas import (
     AssignmentRead,
     AssignmentRunResponse,
@@ -14,6 +14,10 @@ from schemas import (
     DriverRead,
     OrderCreate,
     OrderRead,
+    UserCreate,
+    UserRead,
+    UserLogin,
+    RestaurantRead,
 )
 
 
@@ -92,6 +96,51 @@ def root():
     return {"message": "AutoSolver API is running"}
 
 
+@app.post("/auth/register", response_model=UserRead)
+def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    db_user = db.execute(select(User).where(User.email == user_data.email)).scalars().first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    user = User(
+        email=user_data.email,
+        password_hash=user_data.password, # In a real app, use hashing!
+        role=user_data.role,
+        name=user_data.name
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@app.post("/auth/login")
+def login(login_data: UserLogin, db: Session = Depends(get_db)):
+    user = db.execute(select(User).where(User.email == login_data.email)).scalars().first()
+    if not user or user.password_hash != login_data.password:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    return {
+        "id": user.id,
+        "email": user.email,
+        "role": user.role,
+        "name": user.name,
+        "created_at": user.created_at.isoformat()
+    }
+
+
+@app.get("/restaurants", response_model=list[RestaurantRead])
+def get_restaurants(db: Session = Depends(get_db)):
+    result = db.execute(select(Restaurant))
+    return result.scalars().all()
+
+
+@app.get("/customers", response_model=list[UserRead])
+def get_customers(db: Session = Depends(get_db)):
+    result = db.execute(select(User).where(User.role == "customer"))
+    return result.scalars().all()
+
+
 @app.get("/health")
 def health_check():
     return {
@@ -133,8 +182,17 @@ def create_order(order_data: OrderCreate, db: Session = Depends(get_db)):
 
 @app.get("/orders", response_model=list[OrderRead])
 def get_orders(db: Session = Depends(get_db)):
-    result = db.execute(select(Order).order_by(Order.created_at.desc()))
-    return result.scalars().all()
+    orders = db.execute(select(Order).order_by(Order.created_at.desc())).scalars().all()
+    
+    for order in orders:
+        if order.customer:
+            order.customer_name = order.customer.name
+        if order.restaurant:
+            order.restaurant_name = order.restaurant.name
+        if order.driver:
+            order.driver_name = order.driver.name
+            
+    return orders
 
 
 @app.get("/orders/{order_id}", response_model=OrderRead)
@@ -143,6 +201,13 @@ def get_order(order_id: int, db: Session = Depends(get_db)):
 
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.customer:
+        order.customer_name = order.customer.name
+    if order.restaurant:
+        order.restaurant_name = order.restaurant.name
+    if order.driver:
+        order.driver_name = order.driver.name
 
     return order
 import math

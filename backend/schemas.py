@@ -9,6 +9,39 @@ OrderStatus = Literal["pending", "assigned", "completed", "cancelled"]
 AssignmentStatus = Literal["assigned", "accepted", "rejected", "completed"]
 
 
+class UserBase(BaseModel):
+    email: str
+    name: str
+    role: str
+
+
+class UserCreate(UserBase):
+    password: str
+
+
+class UserRead(UserBase):
+    id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
+class RestaurantRead(BaseModel):
+    id: int
+    name: str
+    address: str
+    lat: float
+    lng: float
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class DriverCreate(BaseModel):
     name: str = Field(min_length=1, max_length=50)
     lat: float = Field(ge=-90, le=90)
@@ -19,11 +52,13 @@ class DriverCreate(BaseModel):
 
 class DriverRead(BaseModel):
     id: int
+    user_id: int | None = None
     name: str
     lat: float
     lng: float
     capacity: int
     status: DriverStatus
+    rating: float
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -40,6 +75,12 @@ class OrderCreate(BaseModel):
 
 class OrderRead(BaseModel):
     id: int
+    customer_id: int | None = None
+    driver_id: int | None = None
+    restaurant_id: int | None = None
+    customer_name: str | None = "Unknown Customer"
+    restaurant_name: str | None = "Unknown Restaurant"
+    driver_name: str | None = None
     pickup_lat: float
     pickup_lng: float
     dropoff_lat: float

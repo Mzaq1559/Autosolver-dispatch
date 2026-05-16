@@ -28,8 +28,8 @@ export default function OwnerDashboard() {
       
       const mappedDrivers = fetchedDrivers.map((d: any) => ({
         ...d,
-        lat: d.current_lat || 0,
-        lng: d.current_lng || 0,
+        lat: d.lat || 0,
+        lng: d.lng || 0,
       }))
       
       setDrivers(mappedDrivers)

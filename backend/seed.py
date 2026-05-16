@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from .database import SessionLocal, engine, Base
-from .models import User, Driver, Restaurant, Order
+from database import SessionLocal, engine, Base
+from models import User, Driver, Restaurant, Order
 import datetime
 
 # Create tables
@@ -46,7 +46,7 @@ def seed_data():
     
     db_drivers = []
     for i, user in enumerate(drivers_list):
-        d = Driver(user_id=user.id, status="online", current_lat=driver_locations[i][0], current_lng=driver_locations[i][1], rating=4.8)
+        d = Driver(user_id=user.id, name=user.name, status="available", lat=driver_locations[i][0], lng=driver_locations[i][1], rating=4.8)
         db.add(d)
         db_drivers.append(d)
 
@@ -74,7 +74,9 @@ def seed_data():
         restaurant_id=1,
         status="pending",
         pickup_lat=38.410, pickup_lng=112.730,
-        delivery_lat=38.415, delivery_lng=112.745
+        dropoff_lat=38.415, dropoff_lng=112.745,
+        deadline_minutes=30,
+        price=15.0
     )
     
     # Order 2: Assigned
@@ -84,7 +86,9 @@ def seed_data():
         restaurant_id=2,
         status="assigned",
         pickup_lat=38.414, pickup_lng=112.738,
-        delivery_lat=38.420, delivery_lng=112.750
+        dropoff_lat=38.420, dropoff_lng=112.750,
+        deadline_minutes=45,
+        price=22.5
     )
     
     # Order 3: Completed
@@ -94,7 +98,9 @@ def seed_data():
         restaurant_id=3,
         status="completed",
         pickup_lat=38.420, pickup_lng=112.740,
-        delivery_lat=38.400, delivery_lng=112.720
+        dropoff_lat=38.400, dropoff_lng=112.720,
+        deadline_minutes=20,
+        price=12.0
     )
     
     db.add_all([order1, order2, order3])

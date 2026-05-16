@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 
-export type OrderStatus = 'assigned' | 'pending' | 'delivered'
+export type OrderStatus = 'assigned' | 'pending' | 'completed' | 'cancelled' | 'delivered'
 
 export interface Order {
   id: number
@@ -22,9 +22,17 @@ const statusStyles: Record<
     badge: 'bg-amber-400 text-[#0f0f1a]',
     borderL: 'border-l-[3px] border-l-amber-400',
   },
+  completed: {
+    badge: 'bg-emerald-500 text-white',
+    borderL: 'border-l-[3px] border-l-emerald-500',
+  },
   delivered: {
     badge: 'bg-emerald-500 text-white',
     borderL: 'border-l-[3px] border-l-emerald-500',
+  },
+  cancelled: {
+    badge: 'bg-red-500 text-white',
+    borderL: 'border-l-[3px] border-l-red-500',
   },
 }
 
@@ -66,7 +74,9 @@ export function OrdersPanel({
               ? '0 0 20px rgba(108, 99, 255, 0.4), 0 4px 12px rgba(0,0,0,0.25)'
               : o.status === 'pending'
                 ? '0 0 20px rgba(251, 191, 36, 0.35), 0 4px 12px rgba(0,0,0,0.25)'
-                : '0 0 20px rgba(16, 185, 129, 0.4), 0 4px 12px rgba(0,0,0,0.25)'
+                : o.status === 'completed' || o.status === 'delivered'
+                  ? '0 0 20px rgba(16, 185, 129, 0.4), 0 4px 12px rgba(0,0,0,0.25)'
+                  : '0 0 20px rgba(239, 68, 68, 0.4), 0 4px 12px rgba(0,0,0,0.25)'
           return (
             <motion.li
               key={o.id}

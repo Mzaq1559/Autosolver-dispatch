@@ -38,7 +38,9 @@ function orderIcon(status: Order['status']): L.DivIcon {
       ? '#6c63ff'
       : status === 'pending'
         ? '#fbbf24'
-        : '#22c55e'
+        : status === 'cancelled'
+          ? '#ef4444'
+          : '#22c55e'
   return L.divIcon({
     className: 'utosolver-marker',
     html: `<div style="width:12px;height:12px;border-radius:4px;background:${color};border:2px solid #0f0f1a;transform:rotate(45deg);box-shadow:0 0 0 2px ${color}44"></div>`,
