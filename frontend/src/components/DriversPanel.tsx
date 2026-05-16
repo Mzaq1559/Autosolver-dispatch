@@ -8,6 +8,8 @@ export interface Driver {
   lat: number
   lng: number
   status: DriverStatus
+  is_in_traffic?: boolean
+  current_orders_count?: number
 }
 
 const container = {

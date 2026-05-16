@@ -32,4 +32,8 @@ export const api = {
   updateOrderStatus: (orderId: number, status: string) => fetchApi(`/orders/${orderId}/status?status=${status}`, {
     method: 'PUT'
   }),
+  startSimulation: () => fetchApi('/simulation/start', { method: 'POST' }),
+  pauseSimulation: () => fetchApi('/simulation/pause', { method: 'POST' }),
+  resumeSimulation: () => fetchApi('/simulation/resume', { method: 'POST' }),
+  setSimulationSpeed: (speed: number) => fetchApi(`/simulation/set-speed?speed=${speed}`, { method: 'POST' }),
 };

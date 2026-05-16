@@ -268,6 +268,7 @@ class SimulationEngine:
         total_orders = db.execute(select(func.count(Order.id)).where(Order.status == 'completed')).scalar() or 0
         active_deliveries = db.execute(select(func.count(Order.id)).where(Order.status.in_(['assigned', 'picked_up', 'delivering']))).scalar() or 0
         available_drivers = db.execute(select(func.count(Driver.id)).where(Driver.status == 'available')).scalar() or 0
+        busy_drivers = db.execute(select(func.count(Driver.id)).where(Driver.status == 'busy')).scalar() or 0
         
         # Avg delivery time (actual_delivery_time - scheduled_time) in minutes
         avg_time_query = db.execute(
@@ -281,21 +282,28 @@ class SimulationEngine:
         one_min_ago = self.current_time - timedelta(minutes=1)
         self._completed_orders_timestamps = [t for t in self._completed_orders_timestamps if t >= one_min_ago]
         orders_per_minute = len(self._completed_orders_timestamps)
+
+        # Orders by status for bar chart
+        status_counts = db.execute(
+            select(Order.status, func.count(Order.id)).group_by(Order.status)
+        ).all()
+        orders_by_status = {s: count for s, count in status_counts}
         
         return {
             "total_orders_processed": total_orders,
             "active_deliveries": active_deliveries,
             "available_drivers": available_drivers,
+            "busy_drivers": busy_drivers,
             "avg_delivery_time": avg_delivery_time,
-            "orders_per_minute": orders_per_minute
+            "orders_per_minute": orders_per_minute,
+            "orders_by_status": orders_by_status
         }
 
     def get_sim_state(self, db):
         """Serialize current state for broadcasting."""
         drivers = db.execute(select(Driver)).scalars().all()
-        # Map internal status to 'delivering' for the frontend if needed
         active_orders = db.execute(
-            select(Order).where(Order.status.in_(['assigned', 'picked_up', 'delivering']))
+            select(Order).where(Order.status.in_(['assigned', 'picked_up', 'delivering', 'arrived']))
         ).scalars().all()
         
         return {
@@ -303,15 +311,28 @@ class SimulationEngine:
             "active_orders": [
                 {
                     "id": o.id, 
-                    "status": o.status if o.status != 'picked_up' else 'delivering', # Normalizing to delivering
+                    "status": o.status if o.status != 'picked_up' else 'delivering',
                     "lat": o.pickup_lat if o.status == 'assigned' else o.dropoff_lat, 
                     "lng": o.pickup_lng if o.status == 'assigned' else o.dropoff_lng,
-                    "driver_name": o.driver_name
+                    "pickup_lat": o.pickup_lat,
+                    "pickup_lng": o.pickup_lng,
+                    "dropoff_lat": o.dropoff_lat,
+                    "dropoff_lng": o.dropoff_lng,
+                    "driver_name": o.driver_name,
+                    "driver_id": o.driver_id
                 }
                 for o in active_orders
             ],
             "all_drivers": [
-                {"id": d.id, "name": d.name, "lat": d.lat, "lng": d.lng, "status": d.status}
+                {
+                    "id": d.id, 
+                    "name": d.name, 
+                    "lat": d.lat, 
+                    "lng": d.lng, 
+                    "status": d.status,
+                    "is_in_traffic": d.is_in_traffic,
+                    "current_orders_count": d.current_orders_count
+                }
                 for d in drivers
             ],
             "statistics": self.get_stats(db)
