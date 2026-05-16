@@ -9,48 +9,30 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
 
+import React, { useMemo, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MapContainer, Marker, TileLayer } from 'react-leaflet'
+import { MapContainer, Marker, TileLayer, Polyline } from 'react-leaflet'
+import { useAuth } from '../../context/AuthContext'
+import { api } from '../../services/api'
 
 const CARTO_DARK =
   'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
 
 type DriverAvailability = 'available' | 'busy'
-
-type OrderDeliveryStatus = 'pending' | 'accepted' | 'picked_up' | 'delivered'
+type OrderDeliveryStatus = 'pending' | 'accepted' | 'picked_up' | 'delivered' | 'assigned'
 
 type OrderDef = {
-  id: string
-  label: string
-  customer: string
-  pickup: string
-  dropoff: string
-  distanceKm: string
-  dropLatLng: [number, number]
+  id: number
+  customer_name: string
+  restaurant_name: string
+  status: OrderDeliveryStatus
+  pickup_lat: number
+  pickup_lng: number
+  delivery_lat: number
+  delivery_lng: number
+  distanceKm?: string
 }
-
-const ORDERS: OrderDef[] = [
-  {
-    id: 'o1',
-    label: '#1042',
-    customer: 'Sara Malik',
-    pickup: 'Pizza Point, Gulberg',
-    dropoff: 'DHA Phase 5',
-    distanceKm: '4.2 km',
-    dropLatLng: [31.4685, 74.4175],
-  },
-  {
-    id: 'o2',
-    label: '#1041',
-    customer: 'Ahmed Raza',
-    pickup: 'Burger Lab, MM Alam',
-    dropoff: 'Johar Town',
-    distanceKm: '6.8 km',
-    dropLatLng: [31.4695, 74.2765],
-  },
-]
 
 /** Lahore center — driver marker */
 const DRIVER_POSITION: [number, number] = [31.5204, 74.3587]
@@ -73,9 +55,19 @@ function dropoffIcon(): L.DivIcon {
   })
 }
 
+function pickupIcon(): L.DivIcon {
+  return L.divIcon({
+    className: 'driver-dash-marker',
+    html: `<div style="width:12px;height:12px;border-radius:9999px;background:#ff6b6b;border:2px solid #0f0f1a;box-shadow:0 0 0 2px #ff6b6b44"></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  })
+}
+
 function statusBadge(status: OrderDeliveryStatus) {
   switch (status) {
     case 'pending':
+    case 'assigned':
       return (
         <span className="rounded-full border border-white/15 bg-[#16213e] px-2.5 py-0.5 text-xs font-medium text-white/60">
           Pending
@@ -140,36 +132,98 @@ const cardVariants = {
 }
 
 export default function DriverDashboard() {
+  const { user, logout } = useAuth()
   const [availability, setAvailability] = useState<DriverAvailability>('available')
-  const [orderStatus, setOrderStatus] = useState<Record<string, OrderDeliveryStatus>>({
-    o1: 'picked_up',
-    o2: 'accepted',
-  })
+  const [driverId, setDriverId] = useState<number | null>(null)
+  const [orders, setOrders] = useState<OrderDef[]>([])
+  const [routes, setRoutes] = useState<Record<number, [number, number][]>>({})
 
   const driverIcon = useMemo(() => driverTealIcon(), [])
   const dropIcon = useMemo(() => dropoffIcon(), [])
+  const pickIcon = useMemo(() => pickupIcon(), [])
 
-  const activeCount = ORDERS.filter((o) => orderStatus[o.id] !== 'delivered').length
+  // Fetch current driver ID based on user.id
+  useEffect(() => {
+    if (!user) return
+    api.getDrivers()
+      .then((drivers: any[]) => {
+        const myDriver = drivers.find((d) => d.user_id === user.id)
+        if (myDriver) {
+          setDriverId(myDriver.id)
+        }
+      })
+      .catch(err => console.error("Failed to fetch drivers", err))
+  }, [user])
 
-  const setOrder = (id: string, next: OrderDeliveryStatus) => {
-    setOrderStatus((prev) => ({ ...prev, [id]: next }))
-  }
+  // Poll for orders
+  useEffect(() => {
+    if (!driverId) return
 
-  const advance = (id: string, current: OrderDeliveryStatus) => {
-    if (current === 'pending') setOrder(id, 'accepted')
-    else if (current === 'accepted') setOrder(id, 'picked_up')
-    else if (current === 'picked_up') setOrder(id, 'delivered')
+    const fetchOrders = () => {
+      api.getOrders()
+        .then((allOrders: any[]) => {
+          const myOrders = allOrders.filter(
+            (o) => o.driver_id === driverId && o.status !== 'delivered'
+          )
+          setOrders(myOrders)
+        })
+        .catch(err => console.error("Failed to fetch orders", err))
+    }
+
+    fetchOrders()
+    const interval = setInterval(fetchOrders, 3000)
+    return () => clearInterval(interval)
+  }, [driverId])
+
+  // Fetch OSRM routes for active orders
+  useEffect(() => {
+    orders.forEach(order => {
+      if (!routes[order.id]) {
+        const lon1 = order.pickup_lng
+        const lat1 = order.pickup_lat
+        const lon2 = order.delivery_lng
+        const lat2 = order.delivery_lat
+        
+        fetch(`https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=full&geometries=geojson`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.routes && data.routes.length > 0) {
+              const coords = data.routes[0].geometry.coordinates.map((c: [number, number]) => [c[1], c[0]])
+              setRoutes(prev => ({ ...prev, [order.id]: coords }))
+            }
+          })
+          .catch(err => console.error("Failed to fetch route for order", order.id, err))
+      }
+    })
+  }, [orders, routes])
+
+  const activeCount = orders.length
+
+  const advance = async (id: number, current: OrderDeliveryStatus) => {
+    let nextStatus = current
+    if (current === 'assigned' || current === 'pending') nextStatus = 'accepted'
+    else if (current === 'accepted') nextStatus = 'picked_up'
+    else if (current === 'picked_up') nextStatus = 'delivered'
+
+    if (nextStatus !== current) {
+      try {
+        await api.updateOrderStatus(id, nextStatus)
+        setOrders(prev => prev.map(o => o.id === id ? { ...o, status: nextStatus as OrderDeliveryStatus } : o))
+      } catch (err) {
+        console.error("Failed to update status", err)
+      }
+    }
   }
 
   const labelForAdvance = (current: OrderDeliveryStatus) => {
-    if (current === 'pending') return 'Accept'
+    if (current === 'assigned' || current === 'pending') return 'Accept'
     if (current === 'accepted') return 'Picked Up'
     if (current === 'picked_up') return 'Delivered'
     return null
   }
 
   const buttonClassForAdvance = (current: OrderDeliveryStatus) => {
-    if (current === 'pending')
+    if (current === 'assigned' || current === 'pending')
       return 'rounded-lg border border-blue-400/40 bg-blue-500/20 px-3 py-2 text-xs font-medium text-blue-200 hover:bg-blue-500/30 sm:text-sm'
     if (current === 'accepted')
       return 'rounded-lg border border-amber-400/50 bg-amber-400/20 px-3 py-2 text-xs font-medium text-amber-100 hover:bg-amber-400/30 sm:text-sm'
@@ -204,19 +258,19 @@ export default function DriverDashboard() {
         </span>
         <div className="flex items-center gap-3">
           <div className="flex max-w-[min(45vw,12rem)] items-center gap-2 sm:max-w-none">
-            <span className="truncate text-sm text-white/90">Ali Hassan</span>
+            <span className="truncate text-sm text-white/90">{user?.name || 'Driver'}</span>
             <span
               className="h-2 w-2 shrink-0 rounded-full bg-[#00d4aa] shadow-[0_0_8px_#00d4aa88]"
               title="Online"
               aria-hidden
             />
           </div>
-          <Link
-            to="/login"
+          <button
+            onClick={logout}
             className="shrink-0 text-sm text-white/50 transition-colors hover:text-white"
           >
             Logout
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -231,11 +285,11 @@ export default function DriverDashboard() {
             <div className="m-3 rounded-2xl bg-[#16213e] p-4">
               <div className="flex gap-3">
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#00d4aa] text-lg font-bold text-[#0f0f1a]">
-                  AH
+                  {user?.name?.[0]?.toUpperCase() || 'D'}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-lg font-bold text-white">Ali Hassan</p>
-                  <p className="truncate text-sm text-white/50">ali@autosolver.com</p>
+                  <p className="text-lg font-bold text-white">{user?.name || 'Driver'}</p>
+                  <p className="truncate text-sm text-white/50">{user?.email}</p>
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2">
@@ -280,8 +334,11 @@ export default function DriverDashboard() {
                 initial="hidden"
                 animate="show"
               >
-                {ORDERS.map((order) => {
-                  const st = orderStatus[order.id] ?? 'pending'
+                {orders.length === 0 && (
+                  <p className="p-4 text-center text-sm text-white/40">No active deliveries.</p>
+                )}
+                {orders.map((order) => {
+                  const st = order.status
                   const advanceLabel = labelForAdvance(st)
                   const borderL = orderCardBorderClass(st)
                   return (
@@ -291,30 +348,29 @@ export default function DriverDashboard() {
                       >
                         <div className="mb-3 flex items-start justify-between gap-2 pr-1">
                           <p className="text-base font-bold text-white">
-                            Order {order.label}
+                            Order #{order.id}
                           </p>
                           <div className="shrink-0">{statusBadge(st)}</div>
                         </div>
                         <p className="mb-2 text-sm text-white/55">
                           <span className="text-white/45">Customer</span>{' '}
-                          <span className="text-white/90">{order.customer}</span>
+                          <span className="text-white/90">{order.customer_name}</span>
                         </p>
                         <div className="mb-1.5 flex gap-2 text-sm text-white/80">
-                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#a855f7]" />
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#ff6b6b]" />
                           <span>
                             <span className="text-white/45">Pickup</span>{' '}
-                            {order.pickup}
+                            {order.restaurant_name}
                           </span>
                         </div>
                         <div className="mb-2 flex gap-2 text-sm text-white/80">
-                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#00d4aa]" />
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#6c63ff]" />
                           <span>
                             <span className="text-white/45">Dropoff</span>{' '}
-                            {order.dropoff}
+                            LatLng: {order.delivery_lat.toFixed(4)}, {order.delivery_lng.toFixed(4)}
                           </span>
                         </div>
-                        <p className="mb-3 text-xs text-white/35">{order.distanceKm}</p>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 mt-3">
                           {advanceLabel ? (
                             <button
                               type="button"
@@ -324,13 +380,6 @@ export default function DriverDashboard() {
                               {advanceLabel}
                             </button>
                           ) : null}
-                          <button
-                            type="button"
-                            className="rounded-lg border border-[#6c63ff]/50 bg-transparent px-3 py-2 text-xs font-medium text-[#b8b3ff] hover:border-[#6c63ff] hover:bg-[#6c63ff]/10 sm:text-sm"
-                            onClick={() => window.alert('Route preview (coming soon)')}
-                          >
-                            View Route
-                          </button>
                         </div>
                       </article>
                     </motion.li>
@@ -360,8 +409,14 @@ export default function DriverDashboard() {
                 url={CARTO_DARK}
               />
               <Marker position={DRIVER_POSITION} icon={driverIcon} />
-              {ORDERS.map((o) => (
-                <Marker key={o.id} position={o.dropLatLng} icon={dropIcon} />
+              {orders.map((o) => (
+                <React.Fragment key={o.id}>
+                  <Marker position={[o.pickup_lat, o.pickup_lng]} icon={pickIcon} />
+                  <Marker position={[o.delivery_lat, o.delivery_lng]} icon={dropIcon} />
+                  {routes[o.id] && (
+                    <Polyline positions={routes[o.id]} color="#6c63ff" weight={4} opacity={0.7} />
+                  )}
+                </React.Fragment>
               ))}
             </MapContainer>
           </div>
