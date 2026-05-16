@@ -1,143 +1,119 @@
 # AutoSolver — AI Delivery Dispatch System
 
-A high-performance, real-time logistics platform for automated driver assignment, dynamic traffic simulation, and delivery tracking.
+**AutoSolver** is a high-performance, real-time logistics platform designed for automated driver assignment, dynamic traffic simulation, and delivery tracking. Built as a CS team project by **Muhammad Zulqarnain Abdullah (24-CS-19)**, it focuses on solving the "manual dispatching bottleneck" using an algorithm-driven simulation engine.
 
 ---
 
-## Project Overview
+## 🚀 Project Overview
 
-**AutoSolver** is a comprehensive logistics management system designed to streamline the complex process of delivery dispatching. In many logistics operations, manual dispatching is a bottleneck that leads to delays and inefficiency. AutoSolver solves this by providing an automated, algorithm-driven engine that matches orders with drivers in real-time.
+The system replicates a complex delivery ecosystem within the city of Lahore (default coordinates). It manages the full lifecycle of an order—from scheduling and assignment to real-time transit and final delivery. 
 
-Built for scalability and performance, the system can handle up to **10,000 concurrent orders** while maintaining a smooth 60FPS user experience. It features a sophisticated simulation engine that replicates a full hour of delivery operations, complete with dynamic traffic conditions and real-time movement tracking.
+### Key Capabilities
+- **Time-Warped Simulation**: Replicates 1 hour of delivery operations in ~5 minutes using a configurable speed multiplier (default 12x).
+- **Intelligent Dispatching**: Automatically matches pending orders with the nearest available drivers using a Haversine-based scoring algorithm.
+- **Real-Time Visualization**: A dynamic map interface showing pulsing driver markers, target destinations, and active routes.
+- **Dynamic Traffic Effects**: Injects stochastic traffic events that realistically slow down driver speeds and update ETAs.
 
-This project is ideal for logistics startups, fleet managers, and developers looking to understand real-time geospatial applications.
+---
 
-## Features
-
--   **Real-time Simulation Engine**: Simulates delivery operations with adjustable speed multipliers (default 12x).
--   **Automated Driver Assignment**: Uses a nearest-neighbor algorithm based on Haversine distance to optimize delivery routes.
--   **Dynamic Traffic Simulation**: Randomly applies traffic delays to 15% of active drivers to mimic real-world unpredictability.
--   **Multi-Role Dashboards**:
-    -   **Owner Dashboard**: High-level analytics, live map tracking of all drivers, and simulation controls.
-    -   **Driver Dashboard**: Order management and route visualization.
-    -   **Customer Dashboard**: Real-time tracking of personal orders.
--   **Performance Optimized**: Utilizes list virtualization (React Window) and marker clustering to support 10,000+ active orders.
--   **Live Analytics**: Interactive charts powered by Recharts showing delivery times, orders per minute, and status distribution.
--   **WebSocket Integration**: Real-time state broadcasting for instant UI updates.
-
-## Technology Stack
+## 🛠️ Technology Stack
 
 ### Frontend
--   **Framework**: React 19 (Vite)
--   **Language**: TypeScript
--   **Styling**: Tailwind CSS
--   **Maps**: Leaflet & React-Leaflet
--   **Animations**: Framer Motion
--   **Charts**: Recharts
--   **Real-time**: Socket.io-client
--   **Optimization**: React Window (Virtualization)
+- **Framework**: React 19 (Vite)
+- **Language**: TypeScript
+- **State Management**: React Hooks & Context API
+- **Maps**: Leaflet & React-Leaflet (with Marker Clustering)
+- **Visuals**: Framer Motion (Animations) & Recharts (Analytics)
+- **Networking**: Axios & Socket.io-client
+- **Performance**: React Window (List Virtualization)
 
 ### Backend
--   **Framework**: FastAPI (Python)
--   **Database**: SQLite with SQLAlchemy ORM
--   **Real-time**: Python-SocketIO (WebSockets)
--   **Simulation**: Custom Async Simulation Engine
+- **Framework**: FastAPI (Python)
+- **Database**: SQLite with SQLAlchemy ORM
+- **Real-time**: Python-SocketIO & Standard WebSockets
+- **Engine**: Custom Asynchronous Simulation Engine
 
-## Project Structure
+---
 
-```bash
-utosolver-dispatch/
-├── backend/                # FastAPI application
-│   ├── main.py             # API entry point & routes
-│   ├── models.py           # SQLAlchemy database models
-│   ├── simulation_engine.py # Core simulation logic
-│   ├── ws_manager.py       # WebSocket connection handler
-│   ├── schemas.py          # Pydantic models
-│   └── seed.py             # Database seeding scripts
-├── frontend/               # React application
-│   ├── src/
-│   │   ├── components/     # Reusable UI components (Map, Panels)
-│   │   ├── pages/          # Role-based dashboards
-│   │   ├── context/        # Auth and Simulation contexts
-│   │   └── services/       # API and WebSocket services
-│   └── tailwind.config.js  # Styling configuration
-└── docs/                   # Project documentation
-```
+## 🏗️ Architecture & Workflow
 
-## Installation & Setup
+### 1. Simulation Engine (`simulation_engine.py`)
+The "brain" of the system. It runs a non-blocking loop that:
+- Spawns orders based on a predefined schedule.
+- Calculates driver movement using coordinate interpolation.
+- Applies a 15% probability of traffic delays to active drivers.
+- Computes real-time statistics (Orders per minute, Avg. delivery time).
+
+### 2. API Layer (`main.py`)
+A RESTful interface built with FastAPI that handles:
+- **Authentication**: Role-based access for Owners, Drivers, and Customers.
+- **Data Management**: CRUD operations for drivers, restaurants, and orders.
+- **Simulation Control**: Endpoints to start, pause, resume, and adjust speed.
+
+### 3. Real-Time Broadcasting
+The backend utilizes **Socket.IO** to push compressed state updates (delta updates) to the frontend every 2 seconds, ensuring the UI stays perfectly synced with the simulation engine.
+
+---
+
+## 📊 Current Progress
+
+### ✅ Completed & Fully Functional
+- [x] **Database Schema**: Robust SQLite implementation with SQLAlchemy models.
+- [x] **Simulation Engine**: Full lifecycle management with traffic and movement.
+- [x] **Automated Assignment**: Nearest-neighbor algorithm with capacity management.
+- [x] **Real-time Dashboards**: Live Map, Analytics Charts, and Control Panels.
+- [x] **Auth System**: Working registration and login for multiple user roles.
+- [x] **Route Visualization**: Dynamic Polyline drawing between drivers and targets.
+
+### 🏗️ Planned (Roadmap)
+- [ ] **Advanced Routing**: Integration with OSRM/Google Maps for street-level pathfinding (currently uses straight-line interpolation).
+- [ ] **Predictive AI**: Anticipating high-demand zones using historical data.
+- [ ] **Mobile App**: Dedicated React Native interface for drivers.
+- [ ] **Multi-Region Support**: Simulating multiple cities simultaneously.
+
+---
+
+## 📡 API Endpoints
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/auth/register` | Register a new user (Owner, Driver, Customer) |
+| `POST` | `/auth/login` | Authenticate and receive user session |
+| `GET` | `/simulation/status` | Get current simulation state (running/paused/time) |
+| `POST` | `/simulation/start` | Launch the simulation engine |
+| `POST` | `/simulation/pause` | Pause the active simulation |
+| `GET` | `/drivers` | List all registered drivers and their status |
+| `POST` | `/orders` | Create a new delivery order |
+| `POST` | `/assignments/run` | Manually trigger the assignment algorithm |
+
+---
+
+## ⚙️ Installation & Run Guide
 
 ### Prerequisites
--   Python 3.10+
--   Node.js 18+
--   npm or yarn
+- Python 3.10+
+- Node.js 18+
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/Mzaq1559/utosolver-dispatch.git
-cd utosolver-dispatch
-```
-
-### 2. Backend Setup
+### 1. Backend Setup
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
-The backend will be available at `http://localhost:8000`.
 
-### 3. Frontend Setup
+### 2. Frontend Setup
 ```bash
-cd ../frontend
+cd frontend
 npm install
 npm run dev
 ```
-The frontend will be available at `http://localhost:5173`.
 
-## How It Works
+---
 
-### System Workflow
-1.  **Initialization**: The backend seeds the database with drivers, restaurants, and scheduled orders.
-2.  **Simulation Loop**: The `SimulationEngine` runs an asynchronous loop. Every "tick", it:
-    -   Spawns orders scheduled for the current simulation time.
-    -   Assigns the nearest available driver to pending orders.
-    -   Calculates ETAs and moves drivers toward their destinations.
-    -   Injects random traffic delays.
-3.  **Real-time Broadcast**: The state of all drivers and orders is compressed and broadcasted via WebSockets every 2 seconds.
-4.  **UI Rendering**: The frontend receives the state, updates the Leaflet map, and refreshes the analytics charts.
+## 👥 Team
+- **Muhammad Zulqarnain Abdullah** (24-CS-19) - *Lead Architect & Developer*
 
-### Key Logic
--   **Assignment**: Drivers are selected based on proximity and current load capacity.
--   **Movement**: Coordinate interpolation ensures smooth driver movement on the map between simulation ticks.
-
-## Example Usage
-
-### Dashboard Preview
-The Owner Dashboard provides a bird's-eye view of the entire fleet:
--   **Live Map**: Watch drivers move in real-time.
--   **Control Bar**: Start, Pause, and adjust the simulation speed.
--   **Statistics**: View "Orders Per Minute" and "Average Delivery Time" dynamically.
-
-*(Insert screenshots here)*
-
-### API Example
-To manually start the simulation:
-```bash
-curl -X POST http://localhost:8000/simulation/start
-```
-
-## Future Improvements
-
--   **Advanced Routing**: Integration with OSRM or Google Maps API for street-level pathfinding.
--   **Predictive AI**: Use historical data to predict peak hours and pre-position drivers.
--   **Mobile App**: A dedicated React Native app for drivers to receive push notifications.
--   **Multi-City Support**: Scaling the simulation to handle multiple geographic regions simultaneously.
-
-## Contributors
-
--   **Zulqarnain (Mzaq1559)** - Lead Developer & Architect
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 📜 License
+This project is for academic purposes under the AutoSolver team. MIT License.
