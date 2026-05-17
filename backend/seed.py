@@ -87,69 +87,100 @@ def seed_data():
 
     db.commit()
 
-    # 4. Sample Orders — customer_id maps to Customer table (db_customers list, 0-indexed)
-    # Order 1: Pending — pickup: 忻州古城刀削面馆 (秀容路12号), dropoff: 建设路小区 (刘芳)
-    order1 = Order(
-        customer_id=db_customers[0].id,  # 刘芳
-        restaurant_id=db_restaurants[0].id,
-        status="pending",
-        pickup_lat=38.410, pickup_lng=112.730,   # 秀容路 (Xiurong Rd)
-        dropoff_lat=38.415, dropoff_lng=112.745,  # 建设路居民区 (Jianshe Rd Residential)
-        deadline_minutes=30,
-        price=15.0
-    )
+    # 4. Generate 50 realistic orders with random Xinzhou coordinates
+    import random
 
-    # Order 2: Assigned — pickup: 五台山路莜面栲栳栳 (五台山路88号), dropoff: 平阳路附近 (陈磊)
-    order2 = Order(
-        customer_id=db_customers[1].id,  # 陈磊
-        driver_id=db_drivers[0].id,
-        restaurant_id=db_restaurants[1].id,
-        status="assigned",
-        pickup_lat=38.414, pickup_lng=112.738,   # 五台山路 (Wutai Mountain Rd)
-        dropoff_lat=38.420, dropoff_lng=112.750,  # 平阳路小区 (Pingyang Rd Residential)
-        deadline_minutes=45,
-        price=22.5
-    )
+    # Xinzhou city centre: 38.4167, 112.7333 — offsets within ±0.05
+    BASE_LAT = 38.4167
+    BASE_LNG = 112.7333
 
-    # Order 3: Completed — pickup: 长征街晋味轩 (长征街56号), dropoff: 忻州火车站附近 (杨梅)
-    order3 = Order(
-        customer_id=db_customers[2].id,  # 杨梅
-        driver_id=db_drivers[1].id,
-        restaurant_id=db_restaurants[2].id,
-        status="completed",
-        pickup_lat=38.420, pickup_lng=112.740,   # 长征街 (Changzheng St)
-        dropoff_lat=38.400, dropoff_lng=112.720,  # 忻州站广场 (Xinzhou Railway Station Square)
-        deadline_minutes=20,
-        price=12.0
-    )
+    # Realistic Xinzhou pickup landmark pool (name → approx coords)
+    pickup_landmarks = [
+        ("忻州古城刀削面馆",         38.410, 112.730),
+        ("五台山路莜面栲栳栳",         38.414, 112.738),
+        ("长征街晋味轩",             38.420, 112.740),
+        ("建设路羊杂割馆",            38.405, 112.725),
+        ("平阳路烤全羊坊",            38.411, 112.734),
+        ("忻州老街豆腐脑店",          38.417, 112.742),
+        ("秀容路过油肉面馆",          38.408, 112.729),
+        ("和平路晋北风味饺子铺",       38.413, 112.736),
+        ("忻府区胡辣汤老店",          38.419, 112.733),
+        ("富康路黄河流域烧烤城",       38.422, 112.745),
+        ("忻州站前广场小吃街",         38.403, 112.718),
+        ("新建路川湘菜馆",            38.416, 112.752),
+        ("解放路兰州拉面",            38.421, 112.727),
+        ("人民路石锅鱼餐厅",          38.407, 112.741),
+        ("鼓楼西街麻辣烫",            38.418, 112.731),
+    ]
 
-    # Order 4: Pending — pickup: 建设路羊杂割馆, dropoff: 五台山路附近 (吴强)
-    order4 = Order(
-        customer_id=db_customers[3].id,  # 吴强
-        restaurant_id=db_restaurants[3].id,
-        status="pending",
-        pickup_lat=38.405, pickup_lng=112.725,   # 建设路 (Jianshe Rd)
-        dropoff_lat=38.408, dropoff_lng=112.728,  # 秀容路居民区
-        deadline_minutes=25,
-        price=18.0
-    )
+    # Realistic Xinzhou dropoff district pool
+    dropoff_districts = [
+        ("建设路居民小区",    38.415, 112.745),
+        ("平阳路家园",       38.420, 112.750),
+        ("忻州站广场附近",   38.400, 112.720),
+        ("秀容路居民区",     38.408, 112.728),
+        ("五台山路家园",     38.422, 112.736),
+        ("和平路小区",       38.412, 112.743),
+        ("富康路花苑",       38.424, 112.748),
+        ("忻府区政府附近",   38.416, 112.735),
+        ("新建路住宅区",     38.409, 112.756),
+        ("解放路沿街公寓",   38.419, 112.724),
+        ("人民路学区房",     38.406, 112.738),
+        ("鼓楼东街社区",     38.418, 112.744),
+        ("忻州一中附近",     38.413, 112.731),
+        ("忻州古城景区旁",   38.411, 112.726),
+        ("医院路康复小区",   38.403, 112.733),
+    ]
 
-    # Order 5: Assigned — pickup: 平阳路烤全羊坊, dropoff: 长征街附近 (周静)
-    order5 = Order(
-        customer_id=db_customers[4].id,  # 周静
-        driver_id=db_drivers[2].id,
-        restaurant_id=db_restaurants[4].id,
-        status="assigned",
-        pickup_lat=38.411, pickup_lng=112.734,   # 平阳路 (Pingyang Rd)
-        dropoff_lat=38.422, dropoff_lng=112.736,  # 五台山路居民区
-        deadline_minutes=35,
-        price=32.0
-    )
+    statuses = ["pending", "assigned", "completed"]
+    deadlines = [15, 20, 25, 30, 35, 40, 45, 50, 60]
+    prices = [10.0, 12.5, 15.0, 18.0, 20.0, 22.5, 25.0, 28.0, 30.0, 32.0, 35.0, 38.0, 42.0, 45.0, 50.0]
 
-    db.add_all([order1, order2, order3, order4, order5])
+    random.seed(42)  # reproducible data
+
+    orders = []
+    for i in range(50):
+        customer = random.choice(db_customers)
+        restaurant = random.choice(db_restaurants)
+        status = random.choice(statuses)
+
+        # Pick a landmark and add a small random jitter (±0.008) for variety
+        p_name, p_lat_base, p_lng_base = random.choice(pickup_landmarks)
+        d_name, d_lat_base, d_lng_base = random.choice(dropoff_districts)
+
+        pickup_lat  = round(p_lat_base  + random.uniform(-0.008, 0.008), 6)
+        pickup_lng  = round(p_lng_base  + random.uniform(-0.008, 0.008), 6)
+        dropoff_lat = round(d_lat_base  + random.uniform(-0.008, 0.008), 6)
+        dropoff_lng = round(d_lng_base  + random.uniform(-0.008, 0.008), 6)
+
+        # Clamp to ±0.05 of city centre
+        pickup_lat  = round(max(BASE_LAT - 0.05, min(BASE_LAT + 0.05, pickup_lat)),  6)
+        pickup_lng  = round(max(BASE_LNG - 0.05, min(BASE_LNG + 0.05, pickup_lng)),  6)
+        dropoff_lat = round(max(BASE_LAT - 0.05, min(BASE_LAT + 0.05, dropoff_lat)), 6)
+        dropoff_lng = round(max(BASE_LNG - 0.05, min(BASE_LNG + 0.05, dropoff_lng)), 6)
+
+        driver_id = None
+        if status in ("assigned", "completed"):
+            driver_id = random.choice(db_drivers).id
+
+        order = Order(
+            customer_id=customer.id,
+            restaurant_id=restaurant.id,
+            driver_id=driver_id,
+            status=status,
+            pickup_lat=pickup_lat,
+            pickup_lng=pickup_lng,
+            dropoff_lat=dropoff_lat,
+            dropoff_lng=dropoff_lng,
+            deadline_minutes=random.choice(deadlines),
+            price=random.choice(prices),
+        )
+        orders.append(order)
+
+    db.add_all(orders)
     db.commit()
     db.close()
-    print("Seeding complete.")
+    print("Seeding complete — 50 orders created.")
 
 if __name__ == "__main__":
     seed_data()
