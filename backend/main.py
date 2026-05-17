@@ -1,7 +1,6 @@
 import asyncio
 import math
 import json
-import socketio
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,9 +44,7 @@ def seed_drivers():
 async def lifespan(app: FastAPI):
     init_db()
     seed_drivers()
-    broadcast_task = asyncio.create_task(broadcast_sim_state())
     yield
-    broadcast_task.cancel()
 
 app = FastAPI(
     title="AutoSolver Dispatch API",
@@ -69,28 +66,18 @@ async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            await websocket.receive_text()
+            db = SessionLocal()
+            try:
+                state = sim_engine.get_sim_state(db)
+                await websocket.send_json(state)
+            finally:
+                db.close()
+            await asyncio.sleep(2)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+    except Exception as e:
+        manager.disconnect(websocket)
 
-sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
-sio_app = socketio.ASGIApp(sio)
-app.mount("/ws/simulation", sio_app)
-
-async def broadcast_sim_state():
-    """Background task to broadcast simulation state every 2 seconds with compression."""
-    while True:
-        try:
-            if sim_engine.is_running:
-                db = SessionLocal()
-                try:
-                    state = sim_engine.get_sim_state(db)
-                    await sio.emit('simulation_state', state)
-                finally:
-                    db.close()
-        except Exception as e:
-            print(f"Error in broadcast task: {e}")
-        await asyncio.sleep(2)
 
 @app.get("/simulation/state")
 def get_simulation_state(db: Session = Depends(get_db)):

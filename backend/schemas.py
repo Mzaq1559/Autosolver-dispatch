@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 DriverStatus = Literal["available", "busy", "offline", "idle"]
-OrderStatus = Literal["pending", "assigned", "picked_up", "delivering", "completed", "cancelled"]
+OrderStatus = Literal['pending', 'assigned', 'picked_up', 'delivering', 'arrived', 'completed', 'cancelled']
 AssignmentStatus = Literal["assigned", "accepted", "rejected", "completed"]
 
 

@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion'
 import { useEffect, useMemo, useState, useRef } from 'react'
-import { io, Socket } from 'socket.io-client'
 import { Clock, Activity, Truck, Zap, Percent } from 'lucide-react'
 
 import { AnalyticsPanel } from '../../components/AnalyticsPanel'
@@ -30,7 +29,7 @@ export default function OwnerDashboard() {
   const [simPaused, setSimPaused] = useState(false)
   const [simSpeed, setSimSpeed] = useState(12)
   
-  const socketRef = useRef<Socket | null>(null)
+  const socketRef = useRef<WebSocket | null>(null)
   const lastStatsUpdate = useRef<number>(0)
 
   const fetchData = async () => {
@@ -45,11 +44,13 @@ export default function OwnerDashboard() {
 
   useEffect(() => {
     fetchData()
-    const socket = io('http://localhost:8000', { path: '/ws/simulation', transports: ['websocket'] })
+    const socket = new WebSocket('ws://localhost:8000/ws')
     socketRef.current = socket
-    socket.on('connect', () => console.log('Connected to simulation WebSocket'))
-
-    socket.on('simulation_state', (data) => {
+    
+    socket.onopen = () => console.log('Connected to simulation WebSocket')
+    
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data)
       setSimTime(data.current_time)
       setActiveOrders(data.active_orders)
       setDrivers(data.all_drivers)
@@ -64,7 +65,10 @@ export default function OwnerDashboard() {
         })
         lastStatsUpdate.current = now
       }
-    })
+    }
+
+    socket.onerror = (err) => console.error('WebSocket error:', err)
+    socket.onclose = () => console.log('WebSocket connection closed')
 
     const fetchSimStatus = async () => {
       try {
@@ -74,7 +78,7 @@ export default function OwnerDashboard() {
       } catch (err) { console.error('Failed to fetch simulation status', err) }
     }
     fetchSimStatus()
-    return () => { socket.disconnect() }
+    return () => { socket.close() }
   }, [])
 
   const handleTogglePlay = async () => {
