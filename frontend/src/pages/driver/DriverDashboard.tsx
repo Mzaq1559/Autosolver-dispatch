@@ -34,8 +34,8 @@ type OrderDef = {
   distanceKm?: string
 }
 
-/** Lahore center — driver marker */
-const DRIVER_POSITION: [number, number] = [31.5204, 74.3587]
+/** Xinzhou center — driver marker */
+const DRIVER_POSITION: [number, number] = [38.4167, 112.7333]
 
 function driverTealIcon(): L.DivIcon {
   return L.divIcon({
@@ -367,7 +367,7 @@ export default function DriverDashboard() {
                           <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#6c63ff]" />
                           <span>
                             <span className="text-white/45">Dropoff</span>{' '}
-                            LatLng: {order.delivery_lat.toFixed(4)}, {order.delivery_lng.toFixed(4)}
+                            LatLng: {(order.delivery_lat ?? 0).toFixed(4)}, {(order.delivery_lng ?? 0).toFixed(4)}
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-3">

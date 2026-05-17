@@ -17,8 +17,8 @@ import { MapContainer, Marker, TileLayer } from 'react-leaflet'
 const CARTO_DARK =
   'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
 
-/** Lahore center — customer marker */
-const CUSTOMER_POSITION: [number, number] = [31.5204, 74.3587]
+/** Xinzhou center — customer marker */
+const CUSTOMER_POSITION: [number, number] = [38.4167, 112.7333]
 
 type CustomerOrderStatus = 'delivered' | 'on_the_way' | 'pending'
 
@@ -52,7 +52,7 @@ const INITIAL_ORDERS: CustomerOrder[] = [
     to: 'Johar Town',
     driver: 'Usman Khan',
     timeLabel: 'Est. 12 min',
-    driverLatLng: [31.498, 74.32],
+    driverLatLng: [38.41, 112.73],
   },
   {
     id: 'c3',
