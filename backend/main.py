@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from database import SessionLocal, get_db, init_db
 from models import Assignment, Driver, Order, User, Restaurant
@@ -182,10 +182,18 @@ def create_order(order_data: OrderCreate, db: Session = Depends(get_db)):
 
 @app.get("/orders", response_model=list[OrderRead])
 def get_orders(customer_id: int | None = None, db: Session = Depends(get_db)):
-    query = select(Order).order_by(Order.created_at.desc())
+    query = (
+        select(Order)
+        .options(
+            joinedload(Order.customer),
+            joinedload(Order.restaurant),
+            joinedload(Order.driver),
+        )
+        .order_by(Order.created_at.desc())
+    )
     if customer_id is not None:
         query = query.where(Order.customer_id == customer_id)
-    orders = db.execute(query).scalars().all()
+    orders = db.execute(query).unique().scalars().all()
     for order in orders:
         if order.customer: order.customer_name = order.customer.name
         if order.restaurant: order.restaurant_name = order.restaurant.name
@@ -194,7 +202,15 @@ def get_orders(customer_id: int | None = None, db: Session = Depends(get_db)):
 
 @app.get("/orders/{order_id}", response_model=OrderRead)
 def get_order(order_id: int, db: Session = Depends(get_db)):
-    order = db.get(Order, order_id)
+    order = db.execute(
+        select(Order)
+        .options(
+            joinedload(Order.customer),
+            joinedload(Order.restaurant),
+            joinedload(Order.driver),
+        )
+        .where(Order.id == order_id)
+    ).unique().scalars().first()
     if order is None: raise HTTPException(status_code=404, detail="Order not found")
     if order.customer: order.customer_name = order.customer.name
     if order.restaurant: order.restaurant_name = order.restaurant.name

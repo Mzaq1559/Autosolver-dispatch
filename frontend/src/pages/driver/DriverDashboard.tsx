@@ -29,8 +29,8 @@ type OrderDef = {
   status: OrderDeliveryStatus
   pickup_lat: number
   pickup_lng: number
-  delivery_lat: number
-  delivery_lng: number
+  dropoff_lat: number
+  dropoff_lng: number
   distanceKm?: string
 }
 
@@ -181,9 +181,12 @@ export default function DriverDashboard() {
       if (!routes[order.id]) {
         const lon1 = order.pickup_lng
         const lat1 = order.pickup_lat
-        const lon2 = order.delivery_lng
-        const lat2 = order.delivery_lat
-        
+        const lon2 = order.dropoff_lng
+        const lat2 = order.dropoff_lat
+
+        // Guard: skip if dropoff coords are missing or zero (invalid)
+        if (!lon2 || !lat2 || lon2 === 0 || lat2 === 0) return
+
         fetch(`https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=full&geometries=geojson`)
           .then(res => res.json())
           .then(data => {
@@ -367,7 +370,7 @@ export default function DriverDashboard() {
                           <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#6c63ff]" />
                           <span>
                             <span className="text-white/45">Dropoff</span>{' '}
-                            LatLng: {(order.delivery_lat ?? 0).toFixed(4)}, {(order.delivery_lng ?? 0).toFixed(4)}
+                            LatLng: {(order.dropoff_lat ?? 0).toFixed(4)}, {(order.dropoff_lng ?? 0).toFixed(4)}
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-3">
@@ -408,11 +411,17 @@ export default function DriverDashboard() {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 url={CARTO_DARK}
               />
-              <Marker position={DRIVER_POSITION} icon={driverIcon} />
+              {DRIVER_POSITION[0] && DRIVER_POSITION[1] && (
+                <Marker position={DRIVER_POSITION} icon={driverIcon} />
+              )}
               {orders.map((o) => (
                 <React.Fragment key={o.id}>
-                  <Marker position={[o.pickup_lat, o.pickup_lng]} icon={pickIcon} />
-                  <Marker position={[o.delivery_lat, o.delivery_lng]} icon={dropIcon} />
+                  {o.pickup_lat && o.pickup_lng && (
+                    <Marker position={[o.pickup_lat, o.pickup_lng]} icon={pickIcon} />
+                  )}
+                  {o.dropoff_lat && o.dropoff_lng && o.dropoff_lat !== 0 && (
+                    <Marker position={[o.dropoff_lat, o.dropoff_lng]} icon={dropIcon} />
+                  )}
                   {routes[o.id] && (
                     <Polyline positions={routes[o.id]} color="#6c63ff" weight={4} opacity={0.7} />
                   )}

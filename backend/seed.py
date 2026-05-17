@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
-from models import User, Driver, Restaurant, Order
+from models import User, Driver, Restaurant, Order, Customer
 import datetime
 
 # Create tables
@@ -32,9 +32,27 @@ def seed_data():
 
     # 5 Customers (Xinzhou residents)
     customer_names = ["刘芳", "陈磊", "杨梅", "吴强", "周静"]
+    customer_users = []
     for i, cname in enumerate(customer_names, start=1):
         u = User(email=f"customer{i}@company.com", password_hash="password123", role="customer", name=cname)
         db.add(u)
+        customer_users.append(u)
+
+    db.commit()
+
+    # Customer profiles (linked to users, with Xinzhou residential addresses)
+    customer_locations = [
+        ("刘芳", "138-0351-0001", "忻州市忻府区建设路15号", 38.415, 112.745),
+        ("陈磊", "138-0351-0002", "忻州市忻府区平阳路20号", 38.420, 112.750),
+        ("杨梅", "138-0351-0003", "忻州市忻府区长征街99号", 38.400, 112.720),
+        ("吴强", "138-0351-0004", "忻州市忻府区秀容路88号", 38.408, 112.728),
+        ("周静", "138-0351-0005", "忻州市忻府区五台山路42号", 38.422, 112.736),
+    ]
+    db_customers = []
+    for name, phone, addr, lat, lng in customer_locations:
+        c = Customer(name=name, phone=phone, address=addr, latitude=lat, longitude=lng)
+        db.add(c)
+        db_customers.append(c)
 
     db.commit()
 
@@ -69,11 +87,11 @@ def seed_data():
 
     db.commit()
 
-    # 4. Sample Orders
-    # Order 1: Pending — pickup: 忻州古城刀削面馆 (秀容路12号), dropoff: 建设路小区
+    # 4. Sample Orders — customer_id maps to Customer table (db_customers list, 0-indexed)
+    # Order 1: Pending — pickup: 忻州古城刀削面馆 (秀容路12号), dropoff: 建设路小区 (刘芳)
     order1 = Order(
-        customer_id=5,  # 刘芳 (IDs: owner=1, drivers=2,3,4, customers=5,6,7,8,9)
-        restaurant_id=1,
+        customer_id=db_customers[0].id,  # 刘芳
+        restaurant_id=db_restaurants[0].id,
         status="pending",
         pickup_lat=38.410, pickup_lng=112.730,   # 秀容路 (Xiurong Rd)
         dropoff_lat=38.415, dropoff_lng=112.745,  # 建设路居民区 (Jianshe Rd Residential)
@@ -81,11 +99,11 @@ def seed_data():
         price=15.0
     )
 
-    # Order 2: Assigned — pickup: 五台山路莜面栲栳栳 (五台山路88号), dropoff: 平阳路附近
+    # Order 2: Assigned — pickup: 五台山路莜面栲栳栳 (五台山路88号), dropoff: 平阳路附近 (陈磊)
     order2 = Order(
-        customer_id=6,  # 陈磊
+        customer_id=db_customers[1].id,  # 陈磊
         driver_id=db_drivers[0].id,
-        restaurant_id=2,
+        restaurant_id=db_restaurants[1].id,
         status="assigned",
         pickup_lat=38.414, pickup_lng=112.738,   # 五台山路 (Wutai Mountain Rd)
         dropoff_lat=38.420, dropoff_lng=112.750,  # 平阳路小区 (Pingyang Rd Residential)
@@ -93,19 +111,42 @@ def seed_data():
         price=22.5
     )
 
-    # Order 3: Completed — pickup: 长征街晋味轩 (长征街56号), dropoff: 忻州火车站附近
+    # Order 3: Completed — pickup: 长征街晋味轩 (长征街56号), dropoff: 忻州火车站附近 (杨梅)
     order3 = Order(
-        customer_id=7,  # 杨梅
+        customer_id=db_customers[2].id,  # 杨梅
         driver_id=db_drivers[1].id,
-        restaurant_id=3,
+        restaurant_id=db_restaurants[2].id,
         status="completed",
         pickup_lat=38.420, pickup_lng=112.740,   # 长征街 (Changzheng St)
         dropoff_lat=38.400, dropoff_lng=112.720,  # 忻州站广场 (Xinzhou Railway Station Square)
         deadline_minutes=20,
         price=12.0
     )
-    
-    db.add_all([order1, order2, order3])
+
+    # Order 4: Pending — pickup: 建设路羊杂割馆, dropoff: 五台山路附近 (吴强)
+    order4 = Order(
+        customer_id=db_customers[3].id,  # 吴强
+        restaurant_id=db_restaurants[3].id,
+        status="pending",
+        pickup_lat=38.405, pickup_lng=112.725,   # 建设路 (Jianshe Rd)
+        dropoff_lat=38.408, dropoff_lng=112.728,  # 秀容路居民区
+        deadline_minutes=25,
+        price=18.0
+    )
+
+    # Order 5: Assigned — pickup: 平阳路烤全羊坊, dropoff: 长征街附近 (周静)
+    order5 = Order(
+        customer_id=db_customers[4].id,  # 周静
+        driver_id=db_drivers[2].id,
+        restaurant_id=db_restaurants[4].id,
+        status="assigned",
+        pickup_lat=38.411, pickup_lng=112.734,   # 平阳路 (Pingyang Rd)
+        dropoff_lat=38.422, dropoff_lng=112.736,  # 五台山路居民区
+        deadline_minutes=35,
+        price=32.0
+    )
+
+    db.add_all([order1, order2, order3, order4, order5])
     db.commit()
     db.close()
     print("Seeding complete.")
