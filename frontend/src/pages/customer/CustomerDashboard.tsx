@@ -10,8 +10,9 @@ L.Icon.Default.mergeOptions({
 })
 
 import { motion } from 'framer-motion'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import { MapContainer, Marker, TileLayer } from 'react-leaflet'
 
 const CARTO_DARK =
@@ -34,36 +35,34 @@ type CustomerOrder = {
   driverLatLng?: [number, number]
 }
 
-const INITIAL_ORDERS: CustomerOrder[] = [
-  {
-    id: 'c1',
-    number: '#1043',
-    status: 'delivered',
-    from: 'Pizza Point, Gulberg',
-    to: 'DHA Phase 5',
-    driver: 'Ali Hassan',
-    timeLabel: '28 min',
-  },
-  {
-    id: 'c2',
-    number: '#1042',
-    status: 'on_the_way',
-    from: 'Burger Lab, MM Alam',
-    to: 'Johar Town',
-    driver: 'Usman Khan',
-    timeLabel: 'Est. 12 min',
-    driverLatLng: [38.41, 112.73],
-  },
-  {
-    id: 'c3',
-    number: '#1041',
-    status: 'pending',
-    from: 'KFC, Liberty',
-    to: 'Gulberg III',
-    driver: null,
-    timeLabel: 'Waiting...',
-  },
-]
+/** Map an API status string to our local union */
+function toCustomerStatus(apiStatus: string): CustomerOrderStatus {
+  if (apiStatus === 'completed' || apiStatus === 'arrived') return 'delivered'
+  if (
+    apiStatus === 'assigned' ||
+    apiStatus === 'picked_up' ||
+    apiStatus === 'delivering'
+  )
+    return 'on_the_way'
+  return 'pending'
+}
+
+/** Derive a human-readable time label from the API order */
+function toTimeLabel(apiStatus: string, createdAt: string): string {
+  if (apiStatus === 'completed' || apiStatus === 'arrived') {
+    const mins = Math.round(
+      (Date.now() - new Date(createdAt).getTime()) / 60000,
+    )
+    return `${mins} min ago`
+  }
+  if (
+    apiStatus === 'assigned' ||
+    apiStatus === 'picked_up' ||
+    apiStatus === 'delivering'
+  )
+    return 'Est. in progress'
+  return 'Waiting...'
+}
 
 function customerPurpleIcon(): L.DivIcon {
   return L.divIcon({
@@ -142,13 +141,59 @@ const cardVariants = {
 }
 
 export default function CustomerDashboard() {
+  const { user } = useAuth()
   const [pickup, setPickup] = useState('')
   const [dropoff, setDropoff] = useState('')
-  const [orders, setOrders] = useState<CustomerOrder[]>(INITIAL_ORDERS)
-  const [nextNum, setNextNum] = useState(1044)
+  const [orders, setOrders] = useState<CustomerOrder[]>([])
+  const [ordersLoading, setOrdersLoading] = useState(true)
+  const [ordersError, setOrdersError] = useState<string | null>(null)
+  const [nextNum, setNextNum] = useState(1000)
 
   const customerIcon = useMemo(() => customerPurpleIcon(), [])
   const driverIcon = useMemo(() => driverTealIcon(), [])
+
+  // Fetch the logged-in customer's orders from the API
+  useEffect(() => {
+    if (!user) return
+    setOrdersLoading(true)
+    setOrdersError(null)
+    fetch(`http://localhost:8000/orders?customer_id=${user.id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
+      .then((data: {
+        id: number
+        status: string
+        restaurant_name: string | null
+        driver_name: string | null
+        pickup_lat: number
+        pickup_lng: number
+        dropoff_lat: number
+        dropoff_lng: number
+        created_at: string
+      }[]) => {
+        const mapped: CustomerOrder[] = data.map((o) => {
+          const status = toCustomerStatus(o.status)
+          return {
+            id: String(o.id),
+            number: `#${o.id}`,
+            status,
+            from: o.restaurant_name ?? `${o.pickup_lat.toFixed(4)}, ${o.pickup_lng.toFixed(4)}`,
+            to: `${o.dropoff_lat.toFixed(4)}, ${o.dropoff_lng.toFixed(4)}`,
+            driver: o.driver_name ?? null,
+            timeLabel: toTimeLabel(o.status, o.created_at),
+          }
+        })
+        setOrders(mapped)
+        // Seed nextNum above the highest order id
+        if (data.length > 0) {
+          setNextNum(Math.max(...data.map((o) => o.id)) + 1)
+        }
+      })
+      .catch((err: Error) => setOrdersError(err.message))
+      .finally(() => setOrdersLoading(false))
+  }, [user])
 
   const activeDriverMarkers = useMemo(
     () =>
@@ -204,7 +249,7 @@ export default function CustomerDashboard() {
         </span>
         <div className="flex items-center gap-3">
           <div className="flex max-w-[min(45vw,12rem)] items-center gap-2 sm:max-w-none">
-            <span className="truncate text-sm text-white/90">Sara Malik</span>
+            <span className="truncate text-sm text-white/90">{user?.name ?? 'Customer'}</span>
             <span
               className="h-2 w-2 shrink-0 rounded-full bg-[#00d4aa] shadow-[0_0_8px_#00d4aa88]"
               title="Online"
@@ -261,9 +306,19 @@ export default function CustomerDashboard() {
                   My Orders
                 </h2>
                 <span className="shrink-0 rounded-full bg-[#6c63ff]/25 px-2.5 py-0.5 text-xs font-semibold text-[#b8b3ff]">
-                  {orders.length}
+                  {ordersLoading ? '…' : orders.length}
                 </span>
               </div>
+
+              {ordersLoading && (
+                <p className="px-4 py-6 text-center text-sm text-white/40">Loading orders…</p>
+              )}
+              {!ordersLoading && ordersError && (
+                <p className="px-4 py-3 text-center text-xs text-red-400">Failed to load orders: {ordersError}</p>
+              )}
+              {!ordersLoading && !ordersError && orders.length === 0 && (
+                <p className="px-4 py-6 text-center text-sm text-white/40">No orders yet.</p>
+              )}
 
               <motion.ul
                 className="list-none space-y-0 p-0 px-3"

@@ -181,8 +181,11 @@ def create_order(order_data: OrderCreate, db: Session = Depends(get_db)):
     return order
 
 @app.get("/orders", response_model=list[OrderRead])
-def get_orders(db: Session = Depends(get_db)):
-    orders = db.execute(select(Order).order_by(Order.created_at.desc())).scalars().all()
+def get_orders(customer_id: int | None = None, db: Session = Depends(get_db)):
+    query = select(Order).order_by(Order.created_at.desc())
+    if customer_id is not None:
+        query = query.where(Order.customer_id == customer_id)
+    orders = db.execute(query).scalars().all()
     for order in orders:
         if order.customer: order.customer_name = order.customer.name
         if order.restaurant: order.restaurant_name = order.restaurant.name
