@@ -1,7 +1,7 @@
 import L from 'leaflet'
 // @ts-ignore
 import MarkerClusterGroup from 'react-leaflet-cluster'
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { MapContainer, Marker, Popup, TileLayer, Polyline, Tooltip, useMapEvents } from 'react-leaflet'
 
 import type { Driver } from './DriversPanel'
@@ -106,6 +106,54 @@ export function MapView({
     return () => clearTimeout(timer)
   }, [bounds, mapCenter])
 
+  // OSRM road-following route coordinates, keyed by order ID
+  const [routeCoords, setRouteCoords] = useState<Record<number, [number, number][]>>({})
+  const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    // Debounce to avoid hammering OSRM on every simulation tick
+    if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
+    fetchTimerRef.current = setTimeout(async () => {
+      const results: Record<number, [number, number][]> = {}
+
+      await Promise.all(
+        activeOrders.map(async (order) => {
+          const driver = drivers.find((d) => d.id === order.driver_id)
+          if (!driver) return
+
+          const dLat = driver.lat
+          const dLng = driver.lng
+          const oLat = order.status === 'assigned' ? order.pickup_lat : order.dropoff_lat
+          const oLng = order.status === 'assigned' ? order.pickup_lng : order.dropoff_lng
+
+          // Skip invalid / zero coordinates
+          if (!dLat || !dLng || !oLat || !oLng) return
+
+          try {
+            const url = `https://router.project-osrm.org/route/v1/driving/${dLng},${dLat};${oLng},${oLat}?overview=full&geometries=geojson`
+            const res = await fetch(url)
+            if (!res.ok) return
+            const data = await res.json()
+            const coords: [number, number][] = data?.routes?.[0]?.geometry?.coordinates?.map(
+              ([lng, lat]: [number, number]) => [lat, lng] as [number, number]
+            )
+            if (coords && coords.length > 0) {
+              results[order.id] = coords
+            }
+          } catch {
+            // Network error – silently skip; straight-line fallback used
+          }
+        })
+      )
+
+      setRouteCoords((prev) => ({ ...prev, ...results }))
+    }, 300)
+
+    return () => {
+      if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
+    }
+  }, [activeOrders, drivers])
+
   // Filter markers by bounds
   const visibleDrivers = useMemo(() => {
     if (!deferredBounds) return drivers
@@ -121,7 +169,7 @@ export function MapView({
     })
   }, [activeOrders, deferredBounds])
 
-  // Routes data - Limited to 100 nearest to center
+  // Routes – use OSRM coords when available, straight-line fallback otherwise
   const routes = useMemo(() => {
     const allRoutes = activeOrders.map((order) => {
       const driver = drivers.find((d) => d.id === order.driver_id)
@@ -132,17 +180,22 @@ export function MapView({
       const weight = driver.is_in_traffic ? 4 : 3
       const opacity = driver.is_in_traffic ? 0.6 : 0.8
 
-      const positions: [number, number][] = []
-      positions.push([driver.lat, driver.lng])
-      
-      if (order.status === 'assigned') {
-        positions.push([order.pickup_lat, order.pickup_lng])
+      // Use road-following OSRM path if available; fall back to straight line
+      const osrmPositions = routeCoords[order.id]
+      let positions: [number, number][]
+      if (osrmPositions && osrmPositions.length > 1) {
+        positions = osrmPositions
       } else {
-        positions.push([order.dropoff_lat, order.dropoff_lng])
+        positions = [[driver.lat, driver.lng]]
+        if (order.status === 'assigned') {
+          positions.push([order.pickup_lat, order.pickup_lng])
+        } else {
+          positions.push([order.dropoff_lat, order.dropoff_lng])
+        }
       }
 
-      // Calculate distance to map center for priority
-      const dist = deferredCenter 
+      // Calculate distance to map center for priority sorting
+      const dist = deferredCenter
         ? getDistance(driver.lat, driver.lng, deferredCenter.lat, deferredCenter.lng)
         : 0
 
@@ -153,15 +206,15 @@ export function MapView({
         dashArray,
         weight,
         opacity,
-        dist
+        dist,
       }
     }).filter(Boolean) as any[]
 
-    // Sort by distance and take top 100
+    // Sort by proximity to map centre and cap at 100
     return allRoutes
       .sort((a, b) => a.dist - b.dist)
       .slice(0, 100)
-  }, [activeOrders, drivers, deferredCenter])
+  }, [activeOrders, drivers, deferredCenter, routeCoords])
 
   return (
     <div
